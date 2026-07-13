@@ -1,0 +1,38 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate .env
+        run: |
+          cd /home/docker-steven/fast-mails
+          bash scripts/check-env.sh env.required .env
+
+      - name: Build and deploy
+        run: |
+          cd /home/docker-steven/fast-mails
+          git reset --hard HEAD
+          git clean -fd -e ".env" -e "*.env"
+          git pull origin main
+          docker compose -f docker-compose.prod.yml up -d --build
+
+      - name: Wait for container healthy
+        run: |
+          cd /home/docker-steven/fast-mails
+          bash scripts/wait-healthy.sh fast-mails 30 2 3000
+        timeout-minutes: 2
+
+      - name: Health check
+        run: |
+          sleep 3
+          docker exec fast-mails wget -qO- http://localhost:3000/health >/dev/null || exit 1
+        timeout-minutes: 1

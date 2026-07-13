@@ -1,0 +1,40 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: fast-mails-prod:latest
+    container_name: fast-mails
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+      - BODY_SIZE_LIMIT=5242880
+    networks:
+      - coolify
+      - mailu_default
+    labels:
+      - traefik.enable=true
+      - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
+      - traefik.http.middlewares.gzip.compress=true
+      - traefik.http.routers.http-0-fast.entryPoints=http
+      - traefik.http.routers.http-0-fast.middlewares=redirect-to-https
+      - traefik.http.routers.http-0-fast.rule=Host(`mail.fastrecover.com`)
+      - traefik.http.routers.http-0-fast.service=http-0-fast
+      - traefik.http.routers.https-0-fast.entryPoints=https
+      - traefik.http.routers.https-0-fast.middlewares=gzip
+      - traefik.http.routers.https-0-fast.rule=Host(`mail.fastrecover.com`)
+      - traefik.http.routers.https-0-fast.service=https-0-fast
+      - traefik.http.routers.https-0-fast.tls=true
+      - traefik.http.routers.https-0-fast.tls.certresolver=letsencrypt
+      - traefik.http.services.http-0-fast.loadbalancer.server.port=3000
+      - traefik.http.services.https-0-fast.loadbalancer.server.port=3000
+
+networks:
+  coolify:
+    external: true
+  mailu_default:
+    external: true
