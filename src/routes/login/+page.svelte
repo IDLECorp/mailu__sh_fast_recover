@@ -38,7 +38,7 @@
             autocomplete="username"
             required
             value={form?.email ?? ''}
-            placeholder="nombre@fastrecover.com"
+            placeholder="nombre@shfastrecover.com"
             class="w-full pl-9 pr-3 py-2.5 rounded-lg bg-fast-surface border border-fast-border focus:border-fast-accent text-sm outline-none transition"
           />
         </div>

@@ -28,6 +28,17 @@
 </div>
 
 <main class="max-w-4xl mx-auto px-4 py-6 space-y-8">
+  {#if !data.adminEnabled}
+    <section class="rounded-lg border border-fast-border bg-fast-surface/30 p-6 text-center">
+      <h2 class="text-sm font-medium text-fast-muted">Admin deshabilitado</h2>
+      <p class="text-xs text-fast-muted mt-2 max-w-md mx-auto">
+        La REST API de Mailu está apagada (<code>API=false</code> en <code>/mailu/mailu.env</code>).
+        Habilitá <code>API=true</code> + <code>API_TOKEN=...</code> y configurá <code>MAILU_API_KEY</code>
+        en el <code>.env</code> de Fast para gestionar usuarios desde acá.
+        Mientras tanto, gestioná las cuentas desde <a href="https://mail.nexuscorpec.com/admin" class="underline text-fast-accent">mail.nexuscorpec.com/admin</a>.
+      </p>
+    </section>
+  {:else}
   <section class="rounded-lg border border-fast-border bg-fast-surface/30 p-4">
     <h2 class="text-sm font-medium mb-3 flex items-center gap-2"><Plus class="size-4 text-fast-accent" /> Crear usuario</h2>
     <form
@@ -80,4 +91,5 @@
       {/each}
     </ul>
   </section>
+  {/if}
 </main>

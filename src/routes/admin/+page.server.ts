@@ -3,25 +3,30 @@ import type { PageServerLoad, Actions } from './$types';
 import { listDomains, listUsers, createUser, deleteUser } from '$lib/server/mailu-admin';
 import { getSessionPassword } from '$lib/server/auth';
 import { rateLimitByKey } from '$lib/server/rate-limit';
+import { env } from '$env/dynamic/private';
 
-export const load: PageServerLoad = async ({ locals, url }) => {
+export const load: PageServerLoad = async ({ locals }) => {
   const user = locals.user;
   if (!user) throw error(401, 'No autenticado');
-  const adminDomain = import.meta.env.VITE_ADMIN_DOMAINS?.split(',').map((d: string) => d.trim().toLowerCase()) ?? [];
-  if (adminDomain.length && !adminDomain.includes(user.domain)) throw error(403, 'Sin permisos de administración');
+  const adminDomains = (env.VITE_ADMIN_DOMAINS ?? '').split(',').map((d) => d.trim().toLowerCase()).filter(Boolean);
+  if (adminDomains.length && !adminDomains.includes(user.domain)) throw error(403, 'Sin permisos de administración');
+
+  if (!env.MAILU_API_KEY) {
+    return { adminEnabled: false, domains: [], users: [], currentDomain: user.domain };
+  }
 
   const [domains, users] = await Promise.all([
     listDomains().catch((e) => { console.error('listDomains', e); return []; }),
     listUsers().catch((e) => { console.error('listUsers', e); return []; })
   ]);
-  void user; void url;
-  return { domains, users, currentDomain: user.domain };
+  return { adminEnabled: true, domains, users, currentDomain: user.domain };
 };
 
 export const actions: Actions = {
   createUser: async ({ locals, request, getClientAddress }) => {
     const user = locals.user;
     if (!user) throw error(401, 'No autenticado');
+    if (!env.MAILU_API_KEY) return { ok: false, error: 'Admin deshabilitado: MAILU_API_KEY no configurado' };
     try {
       rateLimitByKey('admin:user', getClientAddress(), { max: 20, windowS: 60 });
     } catch {
@@ -46,6 +51,7 @@ export const actions: Actions = {
   },
   deleteUser: async ({ request, getClientAddress, locals }) => {
     if (!locals.user) throw error(401, 'No autenticado');
+    if (!env.MAILU_API_KEY) return { ok: false, error: 'Admin deshabilitado' };
     try {
       rateLimitByKey('admin:del', getClientAddress(), { max: 20, windowS: 60 });
     } catch {

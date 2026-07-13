@@ -22,11 +22,11 @@ services:
       - traefik.http.middlewares.gzip.compress=true
       - traefik.http.routers.http-0-fast.entryPoints=http
       - traefik.http.routers.http-0-fast.middlewares=redirect-to-https
-      - traefik.http.routers.http-0-fast.rule=Host(`mail.fastrecover.com`)
+      - traefik.http.routers.http-0-fast.rule=Host(`mail.shfastrecover.com`)
       - traefik.http.routers.http-0-fast.service=http-0-fast
       - traefik.http.routers.https-0-fast.entryPoints=https
       - traefik.http.routers.https-0-fast.middlewares=gzip
-      - traefik.http.routers.https-0-fast.rule=Host(`mail.fastrecover.com`)
+      - traefik.http.routers.https-0-fast.rule=Host(`mail.shfastrecover.com`)
       - traefik.http.routers.https-0-fast.service=https-0-fast
       - traefik.http.routers.https-0-fast.tls=true
       - traefik.http.routers.https-0-fast.tls.certresolver=letsencrypt
