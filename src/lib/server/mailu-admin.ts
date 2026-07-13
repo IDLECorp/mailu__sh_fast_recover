@@ -6,7 +6,7 @@ interface MailuConfig {
 }
 
 function getConfig(): MailuConfig {
-  const baseUrl = (env.MAILU_ADMIN_URL ?? 'http://mailu-admin-1:80').replace(/\/$/, '');
+  const baseUrl = (env.MAILU_ADMIN_URL ?? 'http://mailu-admin-1:8080').replace(/\/$/, '');
   const apiKey = env.MAILU_API_KEY;
   if (!apiKey) throw new Error('MAILU_API_KEY no configurado');
   return { baseUrl, apiKey };
@@ -19,7 +19,7 @@ async function adminRequest(path: string, init: RequestInit = {}): Promise<unkno
     ...init,
     headers: {
       'Content-Type': 'application/json',
-      'X-Api-Key': apiKey,
+      'Authorization': `Bearer ${apiKey}`,
       ...(init.headers ?? {})
     },
     signal: AbortSignal.timeout(8000)
