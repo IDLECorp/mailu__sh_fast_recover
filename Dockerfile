@@ -1,7 +1,7 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev || npm install --omit=dev
+RUN npm ci
 
 FROM node:20-alpine AS builder
 WORKDIR /app
@@ -9,6 +9,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx svelte-kit sync
 RUN npm run build
+RUN npm prune --omit=dev
 
 FROM node:20-alpine AS runner
 WORKDIR /app
@@ -23,7 +24,6 @@ RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 fast
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/.env.example ./.env.example
 
 USER fast
 EXPOSE 3000
