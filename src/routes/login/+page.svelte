@@ -1,81 +1,103 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import type { ActionData, PageData } from './$types';
-  import { Mail, Lock, Loader2, AlertCircle } from 'lucide-svelte';
+  import { Mail, Lock, Loader2, AlertCircle, ArrowRight } from 'lucide-svelte';
+  import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
+  import { Button } from '$lib/components/ui/button';
+  import { Input } from '$lib/components/ui/input';
+  import { Label } from '$lib/components/ui/label';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
   let loading = $state(false);
 
   const next = $derived(data.next ?? '/inbox');
+
+  let email = $state('');
+  let password = $state('');
 </script>
 
-<svelte:head><title>Iniciar sesión · Fast Mail</title></svelte:head>
+<svelte:head>
+  <title>Iniciar sesión · Fast Mail</title>
+</svelte:head>
 
-<main class="min-h-screen flex items-center justify-center px-4">
-  <div class="w-full max-w-sm">
-    <div class="flex flex-col items-center mb-8">
-      <div class="size-12 rounded-xl bg-fast-surface border border-fast-border flex items-center justify-center mb-3 text-fast-accent">
+<main class="min-h-screen flex items-center justify-center px-4 py-10">
+  <div class="w-full max-w-sm space-y-6">
+    <div class="flex flex-col items-center text-center space-y-2">
+      <div class="size-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
         <Mail class="size-6" />
       </div>
-      <h1 class="text-2xl font-semibold tracking-tight">Fast Mail</h1>
-      <p class="text-sm text-fast-muted mt-1">Acceso a tu correo Mailu</p>
+      <div>
+        <h1 class="text-2xl font-semibold tracking-tight">Fast Mail</h1>
+        <p class="text-sm text-muted-foreground">Acceso a tu correo SH Fast Recover</p>
+      </div>
     </div>
 
-    <form
-      method="POST"
-      use:enhance={() => { loading = true; return async ({ update }) => { loading = false; await update(); }; }}
-      class="space-y-4"
-    >
-      <input type="hidden" name="next" value={next} />
+    <Card>
+      <CardHeader class="space-y-1">
+        <CardTitle class="text-lg">Bienvenido</CardTitle>
+        <CardDescription>Ingresá con tu cuenta de correo corporativa</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form
+          method="POST"
+          use:enhance={() => { loading = true; return async ({ update }) => { loading = false; await update(); }; }}
+          class="space-y-4"
+        >
+          <input type="hidden" name="next" value={next} />
 
-      <label class="block">
-        <span class="text-xs uppercase tracking-wide text-fast-muted">Email</span>
-        <div class="mt-1 relative">
-          <Mail class="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-fast-muted pointer-events-none" />
-          <input
-            name="email"
-            type="email"
-            autocomplete="username"
-            required
-            value={form?.email ?? ''}
-            placeholder="nombre@shfastrecover.com"
-            class="w-full pl-9 pr-3 py-2.5 rounded-lg bg-fast-surface border border-fast-border focus:border-fast-accent text-sm outline-none transition"
-          />
-        </div>
-      </label>
+          <div class="space-y-2">
+            <Label for="email">Email</Label>
+            <div class="relative">
+              <Mail class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                autocomplete="username"
+                required
+                bind:value={email}
+                placeholder="nombre@shfastrecover.com"
+                class="pl-9"
+              />
+            </div>
+          </div>
 
-      <label class="block">
-        <span class="text-xs uppercase tracking-wide text-fast-muted">Contraseña</span>
-        <div class="mt-1 relative">
-          <Lock class="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-fast-muted pointer-events-none" />
-          <input
-            name="password"
-            type="password"
-            autocomplete="current-password"
-            required
-            class="w-full pl-9 pr-3 py-2.5 rounded-lg bg-fast-surface border border-fast-border focus:border-fast-accent text-sm outline-none transition"
-          />
-        </div>
-      </label>
+          <div class="space-y-2">
+            <Label for="password">Contraseña</Label>
+            <div class="relative">
+              <Lock class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                required
+                bind:value={password}
+                class="pl-9"
+              />
+            </div>
+          </div>
 
-      {#if form?.error}
-        <p class="flex items-center gap-2 text-sm text-red-400">
-          <AlertCircle class="size-4 shrink-0" />
-          {form.error}
-        </p>
-      {/if}
+          {#if form?.error}
+            <p class="flex items-center gap-2 text-sm text-destructive">
+              <AlertCircle class="size-4 shrink-0" />
+              {form.error}
+            </p>
+          {/if}
 
-      <button
-        type="submit"
-        disabled={loading}
-        class="w-full py-2.5 rounded-lg bg-fast-accent text-white font-medium text-sm hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center gap-2"
-      >
-        {#if loading}
-          <Loader2 class="size-4 animate-spin" /> Entrando…
-        {:else}
-          Entrar
-        {/if}
-      </button>
-    </form>
+          <Button type="submit" size="lg" disabled={loading} class="w-full">
+            {#if loading}
+              <Loader2 class="size-4 animate-spin" /> Entrando…
+            {:else}
+              Entrar <ArrowRight class="size-4" />
+            {/if}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+
+    <p class="text-center text-xs text-muted-foreground">
+      Mailu · <span class="font-medium">SH Fast Recover</span>
+    </p>
   </div>
 </main>
