@@ -1,7 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import type { ActionData, PageData } from './$types';
-  import { Mail, Lock, Loader2, AlertCircle, ArrowRight } from 'lucide-svelte';
+  import { Mail, Lock, Loader2, AlertCircle, ArrowRight, Eye, EyeOff } from 'lucide-svelte';
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
@@ -14,6 +14,7 @@
 
   let email = $state('');
   let password = $state('');
+  let showPassword = $state(false);
 </script>
 
 <svelte:head>
@@ -69,12 +70,15 @@
               <Input
                 id="password"
                 name="password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 autocomplete="current-password"
                 required
                 bind:value={password}
-                class="pl-9"
+                class="pl-9 pr-9"
               />
+              <button type="button" onclick={() => (showPassword = !showPassword)} class="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition" aria-label={showPassword ? 'Ocultar' : 'Mostrar'}>
+                {#if showPassword}<EyeOff class="size-4" />{:else}<Eye class="size-4" />{/if}
+              </button>
             </div>
           </div>
 

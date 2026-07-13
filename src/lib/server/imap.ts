@@ -65,15 +65,60 @@ export function imapClient(creds: ImapCreds): ImapFlow {
 }
 
 export async function verifyCredentials(creds: ImapCreds): Promise<boolean> {
+  const r = await verifyCredentialsFull(creds);
+  return r.ok;
+}
+
+export interface CredentialCheck {
+  ok: boolean;
+  needPwChange: boolean;
+  reason?: string;
+}
+
+export async function verifyCredentialsFull(creds: ImapCreds): Promise<CredentialCheck> {
   const client = imapClient(creds);
+  let imapOk = false;
   try {
     await client.connect();
-    return true;
+    imapOk = true;
   } catch (e) {
     console.error('imap verifyCredentials failed:', (e as Error)?.message ?? e, 'host=', HOST, 'port=', PORT);
-    return false;
+    return { ok: false, needPwChange: false, reason: 'imap_failed' };
   } finally {
     if (client.usable) await client.logout().catch(() => undefined);
+  }
+  // SMTP verify to detect password-temporary block
+  try {
+    const smtpHost = env.MAILU_SMTP_HOST ?? 'mailu-front-1';
+    const smtpPort = Number(env.MAILU_SMTP_PORT ?? 465);
+    const secure = smtpPort === 465;
+    const nodemailer = (await import('nodemailer')).default;
+    const t = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure,
+      requireTLS: !secure,
+      auth: { user: creds.user, pass: creds.pass },
+      tls: { rejectUnauthorized: false },
+      connectionTimeout: 5000,
+      greetingTimeout: 5000
+    });
+    try {
+      await t.verify();
+      return { ok: true, needPwChange: false };
+    } catch (e) {
+      const msg = (e as Error).message ?? '';
+      if (/535|Authentication|auth/i.test(msg)) {
+        return { ok: true, needPwChange: true, reason: 'smtp_auth_rejected' };
+      }
+      // SMTP server down/unreachable, allow login without send anyway
+      console.error('smtp verify non-auth error', msg);
+      return { ok: true, needPwChange: false };
+    } finally {
+      t.close();
+    }
+  } catch {
+    return { ok: imapOk, needPwChange: false };
   }
 }
 
@@ -450,7 +495,8 @@ export async function purgeTrash(creds: ImapCreds): Promise<number> {
     try {
       const count = (await client.status('Trash', { messages: true })).messages ?? 0;
       if (count > 0) {
-        const uids = (await client.search('ALL', { uid: true })) as number[];
+        const uids = ((await client.search({ all: true } as never, { uid: true })) as number[] | false) || [];
+      if (uids.length) await uidlist_expunge(client, uids);
         await uidlist_expunge(client, uids);
       }
       return count;

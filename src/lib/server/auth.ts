@@ -11,6 +11,7 @@ export interface SessionUser {
 interface StoredSession extends SessionUser {
   password: string;
   createdAt: number;
+  needPwChange: boolean;
 }
 
 const inMemory = new Map<string, StoredSession>();
@@ -90,7 +91,7 @@ async function deleteSessionRaw(sid: string): Promise<void> {
   }
 }
 
-export async function createSession(cookies: Cookies, email: string, password: string): Promise<SessionUser> {
+export async function createSession(cookies: Cookies, email: string, password: string, needPwChange: boolean): Promise<SessionUser> {
   let sid = '';
   let attempts = 0;
   do {
@@ -101,6 +102,7 @@ export async function createSession(cookies: Cookies, email: string, password: s
   const user: StoredSession = {
     email,
     password,
+    needPwChange,
     domain: email.split('@')[1] ?? '',
     createdAt: Date.now()
   };
@@ -132,6 +134,21 @@ export async function getSessionUser(sid: string | null): Promise<SessionUser | 
   const s = await getSessionRaw(sid);
   if (!s) return null;
   return { email: s.email, domain: s.domain };
+}
+
+export async function getSessionNeedPwChange(sid: string | null): Promise<boolean> {
+  if (!sid) return false;
+  const s = await getSessionRaw(sid);
+  if (!s) return false;
+  return s.needPwChange;
+}
+
+export async function clearSessionNeedPwChange(sid: string | null): Promise<void> {
+  if (!sid) return;
+  const s = await getSessionRaw(sid);
+  if (!s) return;
+  s.needPwChange = false;
+  await setSessionRaw(sid, s);
 }
 
 export async function getSessionPassword(sid: string | null): Promise<string | null> {
