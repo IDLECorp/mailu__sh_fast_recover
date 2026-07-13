@@ -377,4 +377,99 @@ export async function appendToDrafts(creds: ImapCreds, rawMessage: string): Prom
   }
 }
 
+export interface SearchQuery {
+  mailbox?: string;
+  from?: string;
+  to?: string;
+  subject?: string;
+  body?: string;
+  since?: Date | null;
+  seen?: boolean | null;
+}
+
+export async function searchMessages(creds: ImapCreds, q: SearchQuery): Promise<SearchHit[]> {
+  const client = imapClient(creds);
+  await client.connect();
+  try {
+    const mailbox = q.mailbox || 'INBOX';
+    const lock = await client.getMailboxLock(mailbox);
+    try {
+      const criteria: Record<string, string | Date | boolean> = {};
+      if (q.from) criteria.from = q.from;
+      if (q.to) criteria.to = q.to;
+      if (q.subject) criteria.subject = q.subject;
+      if (q.body) criteria.body = q.body;
+      if (q.since) criteria.since = q.since;
+      if (q.seen === true) criteria.seen = true;
+      if (q.seen === false) criteria.unseen = true;
+      const searchArgs = (Object.keys(criteria).length ? criteria : 'ALL') as unknown as Parameters<typeof client.search>[0];
+      const uids = await client.search(searchArgs, { uid: true });
+      if (!uids || !uids.length) return [];
+      const map = new Map<number, SearchHit>();
+      for await (const msg of client.fetch(uids as number[], { uid: true, envelope: true, internalDate: true, flags: true, size: true })) {
+        const env = msg.envelope ?? {};
+        const flags = Array.from((msg.flags as Iterable<string> | undefined) ?? []);
+        const dateRaw = msg.internalDate;
+        const date = dateRaw instanceof Date ? dateRaw : new Date(dateRaw ?? Date.now());
+        map.set(msg.uid as number, {
+          uid: msg.uid as number,
+          mailbox,
+          subject: String(env.subject ?? '(sin asunto)'),
+          from: formatAddr(env.from?.[0]),
+          to: formatAddrList(env.to),
+          date,
+          size: msg.size ?? 0,
+          seen: flags.includes('\\Seen')
+        });
+      }
+      return Array.from(map.values()).sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 100);
+    } finally {
+      lock.release();
+    }
+  } finally {
+    await client.logout().catch(() => undefined);
+  }
+}
+
+export interface SearchHit {
+  uid: number;
+  mailbox: string;
+  subject: string;
+  from: string;
+  to: string;
+  date: Date;
+  size: number;
+  seen: boolean;
+}
+
+export async function purgeTrash(creds: ImapCreds): Promise<number> {
+  const client = imapClient(creds);
+  await client.connect();
+  try {
+    const lock = await client.getMailboxLock('Trash');
+    try {
+      const count = (await client.status('Trash', { messages: true })).messages ?? 0;
+      if (count > 0) {
+        const uids = (await client.search('ALL', { uid: true })) as number[];
+        await uidlist_expunge(client, uids);
+      }
+      return count;
+    } finally {
+      lock.release();
+    }
+  } finally {
+    await client.logout().catch(() => undefined);
+  }
+}
+
+async function uidlist_expunge(client: ImapFlow, uids: number[]): Promise<void> {
+  for (const uid of uids) {
+    try {
+      await client.messageDelete(String(uid), { uid: true });
+    } catch {
+      // skip
+    }
+  }
+}
+
 export const FOLDER_ICONS = ['inbox', 'send', 'file-edit', 'trash-2', 'archive', 'alert-octagon'] as const;

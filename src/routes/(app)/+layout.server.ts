@@ -5,13 +5,13 @@ import { error } from '@sveltejs/kit';
 
 export const load: LayoutServerLoad = async ({ locals, cookies, url }) => {
   const sid = locals.sessionId;
-  const user = getSessionUser(sid);
+  const user = await getSessionUser(sid);
   if (!user) throw error(401, 'No autorizado');
   void cookies;
   void url;
 
   let mailboxList: Array<MailboxInfo & { label: string }> = [];
-  const password = sid ? getSessionPassword(sid) : null;
+  const password = sid ? await getSessionPassword(sid) : null;
   if (password) {
     try {
       const boxes = await listMailboxes({ user: user.email, pass: password });

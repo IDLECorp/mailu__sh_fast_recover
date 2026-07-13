@@ -28,7 +28,7 @@ export const actions: Actions = {
     const ok = await verifyCredentials({ user: email, pass: password });
     if (!ok) return fail(401, { error: 'Email o contraseña incorrectos', email });
 
-    createSession(cookies, email, password);
+    await createSession(cookies, email, password);
     throw redirect(303, next.startsWith('/') ? next : '/inbox');
   }
 };

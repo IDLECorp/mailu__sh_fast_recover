@@ -105,14 +105,15 @@
       <button class="lg:hidden rounded-md p-2 hover:bg-accent" aria-label="Abrir menú" onclick={() => (sidebarOpen = true)}>
         <Menu class="size-4" />
       </button>
-      <div class="relative flex-1 max-w-md">
+      <form action="/search" method="GET" class="relative flex-1 max-w-md">
         <Search class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
         <input
           type="search"
+          name="q"
           placeholder="Buscar correo…"
           class="w-full h-9 rounded-md border border-input bg-background pl-9 pr-3 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
-      </div>
+      </form>
     </header>
 
     <main class="flex-1 overflow-y-auto bg-muted/30">

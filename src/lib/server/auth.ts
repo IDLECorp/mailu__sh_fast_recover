@@ -1,6 +1,7 @@
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import { env } from '$env/dynamic/private';
 import type { Cookies } from '@sveltejs/kit';
+import { SESSION_COOKIE, SESSION_TTL_SECONDS, redisClient, pingRedis } from '$lib/server/redis';
 
 export interface SessionUser {
   email: string;
@@ -12,9 +13,7 @@ interface StoredSession extends SessionUser {
   createdAt: number;
 }
 
-const SESSION_COOKIE = 'fast_sid';
-const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
-const sessions = new Map<string, StoredSession>();
+const inMemory = new Map<string, StoredSession>();
 
 function secret(): string {
   const s = env.SESSION_SECRET;
@@ -26,29 +25,7 @@ function sign(payload: string): string {
   return createHmac('sha256', secret()).update(payload).digest('base64url');
 }
 
-export function createSession(cookies: Cookies, email: string, password: string): SessionUser {
-  const sid = randomUUID();
-  const user: StoredSession = {
-    email,
-    password,
-    domain: email.split('@')[1] ?? '',
-    createdAt: Date.now()
-  };
-  sessions.set(sid, user);
-  const body = Buffer.from(sid).toString('base64url');
-  cookies.set(SESSION_COOKIE, `${body}.${sign(body)}`, {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: SESSION_TTL_MS / 1000
-  });
-  return { email: user.email, domain: user.domain };
-}
-
-export function verifySession(cookies: Cookies): string | null {
-  const token = cookies.get(SESSION_COOKIE);
-  if (!token) return null;
+function verifyToken(token: string): string | null {
   const [body, sig] = token.split('.');
   if (!body || !sig) return null;
   const expected = sign(body);
@@ -58,41 +35,121 @@ export function verifySession(cookies: Cookies): string | null {
     return null;
   }
   try {
-    const sid = Buffer.from(body, 'base64url').toString('utf8');
-    const s = sessions.get(sid);
-    if (!s) return null;
-    if (Date.now() - s.createdAt > SESSION_TTL_MS) {
-      sessions.delete(sid);
-      return null;
-    }
-    return sid;
+    return Buffer.from(body, 'base64url').toString('utf8');
   } catch {
     return null;
   }
 }
 
-export function getSessionUser(sid: string | null): SessionUser | null {
+async function getSessionRaw(sid: string): Promise<StoredSession | null> {
+  if (await pingRedis()) {
+    try {
+      const c = await redisClient();
+      const raw = await c.get(`fast:session:${sid}`);
+      if (!raw) return null;
+      const data = JSON.parse(raw) as StoredSession;
+      if (Date.now() - data.createdAt > SESSION_TTL_SECONDS * 1000) {
+        await c.del(`fast:session:${sid}`);
+        return null;
+      }
+      return data;
+    } catch (e) {
+      console.error('redis getSessionRaw', (e as Error).message);
+    }
+  }
+  const s = inMemory.get(sid);
+  if (!s) return null;
+  if (Date.now() - s.createdAt > SESSION_TTL_SECONDS * 1000) {
+    inMemory.delete(sid);
+    return null;
+  }
+  return s;
+}
+
+async function setSessionRaw(sid: string, data: StoredSession): Promise<void> {
+  inMemory.set(sid, data);
+  if (await pingRedis()) {
+    try {
+      const c = await redisClient();
+      await c.set(`fast:session:${sid}`, JSON.stringify(data), 'EX', SESSION_TTL_SECONDS);
+    } catch (e) {
+      console.error('redis setSessionRaw', (e as Error).message);
+    }
+  }
+}
+
+async function deleteSessionRaw(sid: string): Promise<void> {
+  inMemory.delete(sid);
+  if (await pingRedis()) {
+    try {
+      const c = await redisClient();
+      await c.del(`fast:session:${sid}`);
+    } catch (e) {
+      console.error('redis deleteSessionRaw', (e as Error).message);
+    }
+  }
+}
+
+export async function createSession(cookies: Cookies, email: string, password: string): Promise<SessionUser> {
+  let sid = '';
+  let attempts = 0;
+  do {
+    sid = randomUUID();
+    attempts++;
+  } while ((await getSessionRaw(sid)) && attempts < 5);
+
+  const user: StoredSession = {
+    email,
+    password,
+    domain: email.split('@')[1] ?? '',
+    createdAt: Date.now()
+  };
+  await setSessionRaw(sid, user);
+
+  const body = Buffer.from(sid).toString('base64url');
+  cookies.set(SESSION_COOKIE, `${body}.${sign(body)}`, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: SESSION_TTL_SECONDS
+  });
+  return { email: user.email, domain: user.domain };
+}
+
+export async function verifySession(cookies: Cookies): Promise<string | null> {
+  const token = cookies.get(SESSION_COOKIE);
+  if (!token) return null;
+  const sid = verifyToken(token);
   if (!sid) return null;
-  const s = sessions.get(sid);
+  const s = await getSessionRaw(sid);
+  if (!s) return null;
+  return sid;
+}
+
+export async function getSessionUser(sid: string | null): Promise<SessionUser | null> {
+  if (!sid) return null;
+  const s = await getSessionRaw(sid);
   if (!s) return null;
   return { email: s.email, domain: s.domain };
 }
 
-export function getSessionPassword(sid: string | null): string | null {
+export async function getSessionPassword(sid: string | null): Promise<string | null> {
   if (!sid) return null;
-  return sessions.get(sid)?.password ?? null;
+  const s = await getSessionRaw(sid);
+  if (!s) return null;
+  return s.password;
 }
 
-export function destroySession(cookies: Cookies, sid: string | null): void {
-  if (sid) sessions.delete(sid);
+export async function destroySession(cookies: Cookies, sid: string | null): Promise<void> {
+  if (sid) await deleteSessionRaw(sid);
   cookies.delete(SESSION_COOKIE, { path: '/' });
 }
 
-export function pruneExpired(): void {
-  const now = Date.now();
-  for (const [sid, s] of sessions) {
-    if (now - s.createdAt > SESSION_TTL_MS) sessions.delete(sid);
+export async function pruneExpired(): Promise<void> {
+  for (const [sid, s] of inMemory) {
+    if (Date.now() - s.createdAt > SESSION_TTL_SECONDS * 1000) inMemory.delete(sid);
   }
 }
 
-setInterval(pruneExpired, 1000 * 60 * 30).unref();
+setInterval(() => { void pruneExpired(); }, 1000 * 60 * 30).unref();

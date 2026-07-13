@@ -11,7 +11,7 @@ const MAX_SIZE = 10 * 1024 * 1024;
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   const sid = locals.sessionId;
-  const password = sid ? getSessionPassword(sid) : null;
+  const password = sid ? await getSessionPassword(sid) : null;
   if (!locals.user || !password) throw error(401, 'No autorizado');
   const replyUidParam = url.searchParams.get('reply');
   const forwardUidParam = url.searchParams.get('forward');
@@ -56,7 +56,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 export const actions: Actions = {
   send: async ({ locals, request, getClientAddress }) => {
     const sid = locals.sessionId;
-    const password = sid ? getSessionPassword(sid) : null;
+    const password = sid ? await getSessionPassword(sid) : null;
     if (!locals.user || !password) throw error(401, 'No autorizado');
 
     try {
@@ -95,7 +95,7 @@ export const actions: Actions = {
 
   draft: async ({ locals, request }) => {
     const sid = locals.sessionId;
-    const password = sid ? getSessionPassword(sid) : null;
+    const password = sid ? await getSessionPassword(sid) : null;
     if (!locals.user || !password) throw error(401, 'No autorizado');
     const form = await request.formData();
     const to = String(form.get('to') ?? '').trim();

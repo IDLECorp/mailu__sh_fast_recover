@@ -5,7 +5,7 @@ import { fetchAttachment } from '$lib/server/imap';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
   const sid = locals.sessionId;
-  const password = sid ? getSessionPassword(sid) : null;
+  const password = sid ? await getSessionPassword(sid) : null;
   if (!locals.user || !password) throw error(401, 'No autorizado');
   const uid = Number(url.searchParams.get('uid') ?? '0');
   const mailbox = url.searchParams.get('mailbox') ?? 'INBOX';

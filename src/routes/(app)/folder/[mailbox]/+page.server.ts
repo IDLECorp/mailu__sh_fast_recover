@@ -1,11 +1,11 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { getSessionPassword } from '$lib/server/auth';
-import { listFolder, markSeen, deleteMessage, mailboxLabel, type ImapCreds } from '$lib/server/imap';
+import { listFolder, markSeen, deleteMessage, mailboxLabel, purgeTrash, type ImapCreds } from '$lib/server/imap';
 
 export const load: PageServerLoad = async ({ locals, url, params }) => {
   const sid = locals.sessionId;
-  const password = sid ? getSessionPassword(sid) : null;
+  const password = sid ? await getSessionPassword(sid) : null;
   if (!locals.user || !password) throw error(401, 'No autorizado');
   const mailbox = decodeURIComponent(params.mailbox);
   if (!mailbox) throw error(400, ' Carpeta inválida');
@@ -18,7 +18,7 @@ export const load: PageServerLoad = async ({ locals, url, params }) => {
 export const actions: Actions = {
   markRead: async ({ locals, request, params }) => {
     const sid = locals.sessionId;
-    const password = sid ? getSessionPassword(sid) : null;
+    const password = sid ? await getSessionPassword(sid) : null;
     if (!locals.user || !password) throw error(401, 'No autorizado');
     const mailbox = decodeURIComponent(params.mailbox);
     const data = await request.formData();
@@ -29,7 +29,7 @@ export const actions: Actions = {
   },
   delete: async ({ locals, request, params }) => {
     const sid = locals.sessionId;
-    const password = sid ? getSessionPassword(sid) : null;
+    const password = sid ? await getSessionPassword(sid) : null;
     if (!locals.user || !password) throw error(401, 'No autorizado');
     const mailbox = decodeURIComponent(params.mailbox);
     const data = await request.formData();
@@ -37,5 +37,14 @@ export const actions: Actions = {
     if (!uid) return { ok: false };
     await deleteMessage({ user: locals.user.email, pass: password }, mailbox, uid);
     return { ok: true };
+  },
+  purge: async ({ locals, params }) => {
+    const sid = locals.sessionId;
+    const password = sid ? await getSessionPassword(sid) : null;
+    if (!locals.user || !password) throw error(401, 'No autorizado');
+    const mailbox = decodeURIComponent(params.mailbox);
+    if (mailbox !== 'Trash') return { ok: false, error: 'Sólo se puede vaciar la papelera' };
+    const count = await purgeTrash({ user: locals.user.email, pass: password });
+    return { ok: true, count };
   }
 };

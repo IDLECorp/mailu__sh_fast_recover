@@ -7,7 +7,7 @@ const MAILBOX = 'INBOX';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   const sid = locals.sessionId;
-  const password = sid ? getSessionPassword(sid) : null;
+  const password = sid ? await getSessionPassword(sid) : null;
   if (!locals.user || !password) throw error(401, 'No autorizado');
   const creds: ImapCreds = { user: locals.user.email, pass: password };
   const page = Number(url.searchParams.get('page') ?? '1') || 1;
@@ -18,7 +18,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 export const actions: Actions = {
   markRead: async ({ locals, request }) => {
     const sid = locals.sessionId;
-    const password = sid ? getSessionPassword(sid) : null;
+    const password = sid ? await getSessionPassword(sid) : null;
     if (!locals.user || !password) throw error(401, 'No autorizado');
     const data = await request.formData();
     const uid = Number(data.get('uid'));
@@ -28,7 +28,7 @@ export const actions: Actions = {
   },
   delete: async ({ locals, request }) => {
     const sid = locals.sessionId;
-    const password = sid ? getSessionPassword(sid) : null;
+    const password = sid ? await getSessionPassword(sid) : null;
     if (!locals.user || !password) throw error(401, 'No autorizado');
     const data = await request.formData();
     const uid = Number(data.get('uid'));
