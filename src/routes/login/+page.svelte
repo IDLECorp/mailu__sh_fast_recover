@@ -68,7 +68,7 @@
       <button
         type="submit"
         disabled={loading}
-        class="w-full py-2.5 rounded-lg bg-fast-accent text-fast-bg font-medium text-sm hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center gap-2"
+        class="w-full py-2.5 rounded-lg bg-fast-accent text-white font-medium text-sm hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center gap-2"
       >
         {#if loading}
           <Loader2 class="size-4 animate-spin" /> Entrando…
@@ -77,9 +77,5 @@
         {/if}
       </button>
     </form>
-
-    <p class="mt-6 text-center text-xs text-fast-muted">
-      Acceso sobre Mailu · IMAP/SMTP · TLS
-    </p>
   </div>
 </main>

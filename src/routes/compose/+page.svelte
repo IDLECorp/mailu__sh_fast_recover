@@ -54,7 +54,7 @@
 
     <div class="flex justify-end">
       <button type="submit" disabled={loading}
-        class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-fast-accent text-fast-bg font-medium text-sm hover:opacity-90 transition disabled:opacity-50">
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-fast-accent text-white font-medium text-sm hover:opacity-90 transition disabled:opacity-50">
         {#if loading}
           <Loader2 class="size-4 animate-spin" /> Enviando…
         {:else}

@@ -19,7 +19,7 @@
       </div>
     </div>
     <div class="flex items-center gap-2">
-      <a href="/compose" class="px-3 py-1.5 rounded-md bg-fast-accent text-fast-bg text-xs font-medium hover:opacity-90 transition">Redactar</a>
+      <a href="/compose" class="px-3 py-1.5 rounded-md bg-fast-accent text-white text-xs font-medium hover:opacity-90 transition">Redactar</a>
       <form method="POST" action="/logout">
         <button type="submit" class="px-3 py-1.5 rounded-md border border-fast-border text-xs hover:bg-fast-surface transition">Salir</button>
       </form>

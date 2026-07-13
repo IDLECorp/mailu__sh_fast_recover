@@ -1,23 +1,23 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-fast-bg: #064a29;
-  --color-fast-surface: #0a6f3d;
-  --color-fast-surface-2: #0d8f4f;
-  --color-fast-border: #23c06f;
-  --color-fast-accent: #23c06f;
-  --color-fast-accent-soft: #2ed98a;
-  --color-fast-text: #f0fdf4;
-  --color-fast-muted: #86efac;
+  --color-fast-bg: #f0f9ff;
+  --color-fast-surface: #ffffff;
+  --color-fast-surface-2: #e0f2fe;
+  --color-fast-border: #bae6fd;
+  --color-fast-accent: #0284c7;
+  --color-fast-accent-soft: #38bdf8;
+  --color-fast-text: #0f172a;
+  --color-fast-muted: #64748b;
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 html, body {
-  background: linear-gradient(135deg, #064a29 0%, #0d8f4f 55%, #23c06f 100%);
+  background: linear-gradient(135deg, #ffffff 0%, #e0f2fe 55%, #bae6fd 100%);
   background-attachment: fixed;
   color: var(--color-fast-text);
   font-family: var(--font-sans);
@@ -39,5 +39,5 @@ a {
 }
 
 input::placeholder, textarea::placeholder {
-  color: color-mix(in oklab, var(--color-fast-muted) 60%, transparent);
+  color: color-mix(in oklab, var(--color-fast-muted) 70%, transparent);
 }

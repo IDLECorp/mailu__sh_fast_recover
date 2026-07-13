@@ -26,7 +26,8 @@ export function imapClient(creds: ImapCreds): ImapFlow {
     host: HOST,
     port: PORT,
     secure: SECURE,
-    tls: SECURE ? {} : { rejectUnauthorized: false },
+    tls: { rejectUnauthorized: false },
+    doSTARTTLS: false,
     auth: { user: creds.user, pass: creds.pass },
     logger: false,
     emitLogs: false
@@ -38,7 +39,8 @@ export async function verifyCredentials(creds: ImapCreds): Promise<boolean> {
   try {
     await client.connect();
     return true;
-  } catch {
+  } catch (e) {
+    console.error('imap verifyCredentials failed:', (e as Error)?.message ?? e, 'host=', HOST, 'port=', PORT);
     return false;
   } finally {
     if (client.usable) await client.logout().catch(() => undefined);

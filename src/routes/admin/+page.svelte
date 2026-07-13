@@ -61,7 +61,7 @@
         <input name="quota" type="number" placeholder="quota MB" bind:value={quota}
           class="flex-1 px-3 py-2 rounded-md bg-fast-surface border border-fast-border focus:border-fast-accent text-sm outline-none transition" />
         <button type="submit" disabled={loading}
-          class="px-3 py-2 rounded-md bg-fast-accent text-fast-bg text-sm font-medium hover:opacity-90 transition disabled:opacity-50">
+          class="px-3 py-2 rounded-md bg-fast-accent text-white text-sm font-medium hover:opacity-90 transition disabled:opacity-50">
           {#if loading}<Loader2 class="size-4 animate-spin" />{:else}<Plus class="size-4" />{/if}
         </button>
       </div>
