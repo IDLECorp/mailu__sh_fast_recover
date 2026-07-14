@@ -35,13 +35,12 @@ export const actions: Actions = {
     try {
       await updatePassword(locals.user.email, newPw);
       if (sid) await clearSessionNeedPwChange(sid);
-      void cookies;
-      void getClientAddress;
-      throw redirect(303, '/inbox');
     } catch (e) {
-      if (e instanceof Error && e.message === 'redirect') throw e;
       const msg = (e as Error).message || 'no se pudo cambiar';
       return fail(500, { error: msg });
     }
+    void cookies;
+    void getClientAddress;
+    throw redirect(303, '/inbox');
   }
 };
