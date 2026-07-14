@@ -7,10 +7,14 @@ import { env } from '$env/dynamic/private';
 export const load: PageServerLoad = async ({ locals, cookies }) => {
   void cookies;
   if (!locals.user) throw redirect(303, '/login');
+
+  const sid = locals.sessionId;
+  const currentPassword = sid ? await getSessionPassword(sid) : null;
+
   if (!env.MAILU_API_KEY) {
-    return { adminEnabled: false, email: locals.user.email };
+    return { adminEnabled: false as const, email: locals.user.email, currentPassword: '' };
   }
-  return { adminEnabled: true, email: locals.user.email };
+  return { adminEnabled: true as const, email: locals.user.email, currentPassword: currentPassword ?? '' };
 };
 
 export const actions: Actions = {
