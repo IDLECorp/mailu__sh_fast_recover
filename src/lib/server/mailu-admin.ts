@@ -52,20 +52,24 @@ export interface MailuAlias {
   destination: string;
 }
 
+function api(path: string): string {
+  return `/api/v1${path.startsWith('/') ? path : `/${path}`}`;
+}
+
 export async function listDomains(): Promise<MailuDomain[]> {
-  return (await adminRequest('/domain')) as MailuDomain[];
+  return (await adminRequest(api('/domain'))) as MailuDomain[];
 }
 
 export async function getDomain(name: string): Promise<MailuDomain | null> {
   try {
-    return (await adminRequest(`/domain/${encodeURIComponent(name)}`)) as MailuDomain;
+    return (await adminRequest(api(`/domain/${encodeURIComponent(name)}`))) as MailuDomain;
   } catch {
     return null;
   }
 }
 
 export async function createDomain(data: Pick<MailuDomain, 'name'> & { alternatives?: string[] }): Promise<MailuDomain> {
-  return (await adminRequest('/domain', {
+  return (await adminRequest(api('/domain'), {
     method: 'POST',
     body: JSON.stringify(data)
   })) as MailuDomain;
@@ -73,11 +77,11 @@ export async function createDomain(data: Pick<MailuDomain, 'name'> & { alternati
 
 export async function listUsers(domain?: string): Promise<MailuUser[]> {
   const path = domain ? `/user?domain=${encodeURIComponent(domain)}` : '/user';
-  return (await adminRequest(path)) as MailuUser[];
+  return (await adminRequest(api(path))) as MailuUser[];
 }
 
 export async function createUser(input: { localpart: string; domain: string; password: string; quota?: number }): Promise<MailuUser> {
-  return (await adminRequest('/user', {
+  return (await adminRequest(api('/user'), {
     method: 'POST',
     body: JSON.stringify({
       localpart: input.localpart,
@@ -89,11 +93,11 @@ export async function createUser(input: { localpart: string; domain: string; pas
 }
 
 export async function deleteUser(email: string): Promise<void> {
-  await adminRequest(`/user/${encodeURIComponent(email)}`, { method: 'DELETE' });
+  await adminRequest(api(`/user/${encodeURIComponent(email)}`), { method: 'DELETE' });
 }
 
 export async function updatePassword(email: string, password: string): Promise<void> {
-  await adminRequest(`/user/${encodeURIComponent(email)}`, {
+  await adminRequest(api(`/user/${encodeURIComponent(email)}`), {
     method: 'PATCH',
     body: JSON.stringify({ password })
   });
@@ -101,5 +105,5 @@ export async function updatePassword(email: string, password: string): Promise<v
 
 export async function listAliases(domain?: string): Promise<MailuAlias[]> {
   const path = domain ? `/alias?domain=${encodeURIComponent(domain)}` : '/alias';
-  return (await adminRequest(path)) as MailuAlias[];
+  return (await adminRequest(api(path))) as MailuAlias[];
 }
