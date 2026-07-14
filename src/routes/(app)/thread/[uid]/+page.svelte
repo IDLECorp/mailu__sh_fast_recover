@@ -8,7 +8,11 @@
   let { data }: { data: PageData } = $props();
 
   const m = $derived(data.detail);
-  let body = $derived(m.html ? sanitizeEmailHtml(m.html) : `<pre style="white-space:pre-wrap;font-family:inherit;margin:0">${escapeHtml(m.text)}</pre>`);
+  let body = $derived(
+    m.html
+      ? sanitizeEmailHtml(m.html)
+      : `<pre style="white-space:pre-wrap;font-family:inherit;margin:0">${escapeHtml(m.text)}</pre>`,
+  );
   const senderName = $derived(m.from.match(/^(.*?)\s*<.*>$/)?.[1]?.trim() || m.from);
 
   function escapeHtml(s: string): string {
@@ -28,17 +32,29 @@
 
 <svelte:head><title>{m.subject} · Fast Mail</title></svelte:head>
 
-<div class="flex h-full flex-col">
+<div class="flex h-full flex-col pt-4">
   <!-- Top bar -->
-  <div class="flex items-center gap-2 border-b bg-card px-4 py-3 sm:px-6">
-    <Button href={data.mailbox === 'INBOX' ? '/inbox' : `/folder/${encodeURIComponent(data.mailbox)}`} variant="ghost" size="sm">
+  <div class="flex items-center gap-2 bg-card px-4 py-3 sm:px-6">
+    <Button
+      href={data.mailbox === 'INBOX' ? '/inbox' : `/folder/${encodeURIComponent(data.mailbox)}`}
+      variant="ghost"
+      size="sm"
+    >
       <ArrowLeft class="size-4" /> Volver
     </Button>
     <div class="flex-1"></div>
-    <Button href={`/compose?reply=${data.uid}&mailbox=${encodeURIComponent(data.mailbox)}`} variant="outline" size="sm">
+    <Button
+      href={`/compose?reply=${data.uid}&mailbox=${encodeURIComponent(data.mailbox)}`}
+      variant="outline"
+      size="sm"
+    >
       <Reply class="size-4" /> Responder
     </Button>
-    <Button href={`/compose?forward=${data.uid}&mailbox=${encodeURIComponent(data.mailbox)}`} variant="outline" size="sm">
+    <Button
+      href={`/compose?forward=${data.uid}&mailbox=${encodeURIComponent(data.mailbox)}`}
+      variant="outline"
+      size="sm"
+    >
       <Forward class="size-4" />
     </Button>
   </div>
@@ -51,7 +67,11 @@
 
       <!-- Sender card -->
       <div class="flex items-start gap-3 mb-6">
-        <Avatar alt={m.from} fallback={senderName.slice(0, 2).toUpperCase()} class="size-10 border" />
+        <Avatar
+          alt={m.from}
+          fallback={senderName.slice(0, 2).toUpperCase()}
+          class="size-10 bg-[#1b82bb] text-white"
+        />
         <div class="min-w-0 flex-1">
           <div class="flex items-baseline justify-between gap-2">
             <div>
@@ -72,7 +92,9 @@
       <!-- Body -->
       <div class="prose prose-sm max-w-none border-t pt-4">
         <!-- svelte-ignore html_with_external_script html_script_tag -->
-        <div class="email-body [&_a]:text-primary [&_a]:underline [&_img]:max-w-full [&_table]:max-w-full">
+        <div
+          class="email-body [&_a]:text-primary [&_a]:underline [&_img]:max-w-full [&_table]:max-w-full"
+        >
           {@html body}
         </div>
       </div>
@@ -87,8 +109,13 @@
             {#each m.attachments as a}
               {@const href = `/api/attachment?uid=${data.uid}&mailbox=${encodeURIComponent(data.mailbox)}&filename=${encodeURIComponent(a.filename)}`}
               <li>
-                <a {href} class="flex items-center gap-3 rounded-md border bg-card p-3 hover:bg-accent transition text-sm">
-                  <div class="size-8 rounded border flex items-center justify-center text-muted-foreground">
+                <a
+                  {href}
+                  class="flex items-center gap-3 rounded-md border bg-card p-3 hover:bg-accent transition text-sm"
+                >
+                  <div
+                    class="size-8 rounded border flex items-center justify-center text-muted-foreground"
+                  >
                     <Paperclip class="size-4" />
                   </div>
                   <div class="min-w-0 flex-1">

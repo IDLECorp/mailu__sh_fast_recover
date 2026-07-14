@@ -41,8 +41,8 @@
 
 <svelte:head><title>Redactar · Fast Mail</title></svelte:head>
 
-<div class="flex h-full flex-col">
-  <div class="border-b bg-card px-4 py-3 sm:px-6 flex items-center gap-2">
+<div class="flex h-full flex-col pt-4">
+  <div class="bg-card px-4 py-3 sm:px-6 flex items-center gap-2">
     <Button href="/inbox" variant="ghost" size="sm">
       <ArrowLeft class="size-4" /> Descartar
     </Button>
@@ -65,16 +65,32 @@
               loading = true;
               formData.delete('attachment');
               for (const f of files) formData.append('attachment', f);
-              return async ({ result, update }) => { loading = false; if (result.type === 'success' && result.data?.ok) { goto('/inbox?sent=1'); } await update(); };
+              return async ({ result, update }) => {
+                loading = false;
+                if (result.type === 'success' && result.data?.ok) {
+                  goto('/inbox?sent=1');
+                }
+                await update();
+              };
             }}
             enctype="multipart/form-data"
           >
             <div class="space-y-2">
               <Label for="to">Para</Label>
               <div class="flex gap-2">
-                <Input id="to" name="to" type="email" multiple placeholder="destinatario@dominio.com" required bind:value={to} />
+                <Input
+                  id="to"
+                  name="to"
+                  type="email"
+                  multiple
+                  placeholder="destinatario@dominio.com"
+                  required
+                  bind:value={to}
+                />
                 {#if !showCc}
-                  <Button type="button" variant="outline" size="sm" onclick={() => (showCc = true)}>Cc</Button>
+                  <Button type="button" variant="outline" size="sm" onclick={() => (showCc = true)}
+                    >Cc</Button
+                  >
                 {/if}
               </div>
             </div>
@@ -82,18 +98,39 @@
             {#if showCc}
               <div class="space-y-2">
                 <Label for="cc">Cc</Label>
-                <Input id="cc" name="cc" type="email" multiple placeholder="con copia" bind:value={cc} />
+                <Input
+                  id="cc"
+                  name="cc"
+                  type="email"
+                  multiple
+                  placeholder="con copia"
+                  bind:value={cc}
+                />
               </div>
             {/if}
 
             <div class="space-y-2">
               <Label for="subject">Asunto</Label>
-              <Input id="subject" name="subject" type="text" required maxlength={200} bind:value={subject} />
+              <Input
+                id="subject"
+                name="subject"
+                type="text"
+                required
+                maxlength={200}
+                bind:value={subject}
+              />
             </div>
 
             <div class="space-y-2">
               <Label for="text">Mensaje</Label>
-              <Textarea id="text" name="text" rows={10} required bind:value={text} class="font-mono" />
+              <Textarea
+                id="text"
+                name="text"
+                rows={10}
+                required
+                bind:value={text}
+                class="font-mono"
+              />
             </div>
 
             <input type="hidden" name="html" value="" />
@@ -106,7 +143,10 @@
                 tabindex="0"
                 class="rounded-md border border-dashed bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground transition hover:bg-accent cursor-pointer"
                 class:bg-accent={dragging}
-                ondragover={(e) => { e.preventDefault(); dragging = true; }}
+                ondragover={(e) => {
+                  e.preventDefault();
+                  dragging = true;
+                }}
                 ondragleave={() => (dragging = false)}
                 ondrop={onDrop}
                 onclick={() => document.getElementById('attachment')?.click()}
@@ -114,7 +154,14 @@
                 <Paperclip class="size-5 mx-auto mb-2 opacity-60" />
                 Arrastrá archivos aquí o hacé clic para seleccionar
               </div>
-              <input id="attachment" name="attachment" type="file" multiple class="hidden" onchange={onFiles} />
+              <input
+                id="attachment"
+                name="attachment"
+                type="file"
+                multiple
+                class="hidden"
+                onchange={onFiles}
+              />
               {#if files.length > 0}
                 <ul class="space-y-1">
                   {#each files as f, i}
@@ -122,11 +169,19 @@
                       <Paperclip class="size-4 text-muted-foreground" />
                       <span class="flex-1 truncate">{f.name}</span>
                       <span class="text-xs text-muted-foreground">{fmtSize(f.size)}</span>
-                      <button type="button" onclick={() => removeFile(i)} class="text-muted-foreground hover:text-destructive"><X class="size-4" /></button>
+                      <button
+                        type="button"
+                        onclick={() => removeFile(i)}
+                        class="text-muted-foreground hover:text-destructive"
+                        ><X class="size-4" /></button
+                      >
                     </li>
                   {/each}
                 </ul>
-                <p class="text-xs text-muted-foreground">Para incluirlos en el envío, volvé a seleccionarlos en el diálogo (limitación del navegador). Máx 10 MB.</p>
+                <p class="text-xs text-muted-foreground">
+                  Para incluirlos en el envío, volvé a seleccionarlos en el diálogo (limitación del
+                  navegador). Máx 10 MB.
+                </p>
               {/if}
             </div>
 
@@ -141,7 +196,9 @@
 
             <div class="flex justify-end pt-2">
               <Button type="submit" size="lg" disabled={loading}>
-                {#if loading}<Loader2 class="size-4 animate-spin" /> Enviando…{:else}<Send class="size-4" /> Enviar mensaje{/if}
+                {#if loading}<Loader2 class="size-4 animate-spin" /> Enviando…{:else}<Send
+                    class="size-4"
+                  /> Enviar mensaje{/if}
               </Button>
             </div>
           </form>

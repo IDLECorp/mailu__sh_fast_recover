@@ -4,7 +4,6 @@
   import { Trash2, MailOpen, ChevronLeft, ChevronRight, Mail as MailIcon, Paperclip, Loader2 } from 'lucide-svelte';
   import { cn } from '$lib/utils';
   import { Avatar } from '$lib/components/ui/avatar';
-  import { Button } from '$lib/components/ui/button';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
   let busyUid = $state<number | null>(null);
@@ -29,8 +28,8 @@
 
 <svelte:head><title>{data.mailboxLabel} · Fast Mail</title></svelte:head>
 
-<div class="flex h-full flex-col">
-  <div class="border-b bg-card px-4 py-3 sm:px-6">
+<div class="flex h-full flex-col pt-4">
+  <div class="bg-card px-4 py-3 sm:px-6">
     <div class="flex items-center gap-2">
       <MailIcon class="size-4 text-primary" />
       <h1 class="text-sm font-semibold">{data.mailboxLabel}</h1>
@@ -38,7 +37,7 @@
     </div>
   </div>
 
-  <div class="flex-1 overflow-y-auto">
+  <div class="flex-1 pt-4 overflow-y-auto">
     {#if data.messages.length === 0}
       <div class="flex flex-col items-center justify-center py-20 text-muted-foreground">
         <MailIcon class="size-12 mb-3 opacity-40" />
@@ -47,18 +46,17 @@
     {:else}
       <ul class="divide-y">
         {#each data.messages as m}
-          <li class="group relative flex gap-3 px-4 py-3 transition-colors hover:bg-accent/40 sm:px-6" class:bg-accent={!m.seen}>
+          <li class="group relative flex gap-3 px-4 py-4 transition-colors hover:bg-accent/40 sm:px-6" class:bg-accent={!m.seen}>
             <a href={`/thread/${m.uid}?mailbox=${encodeURIComponent(data.mailbox)}`} class="absolute inset-0 z-10" aria-label={m.subject}></a>
             {#if !m.seen}
               <span class="absolute left-1 top-1/2 -translate-y-1/2 size-1.5 rounded-full bg-primary"></span>
             {/if}
 
-            <Avatar alt={m.from} fallback={senderInitials(m.from)} class="size-9 mt-0.5 z-20 pointer-events-none border" />
+            <Avatar alt={m.from} fallback={senderInitials(m.from)} class="size-9 mt-0.5 z-20 bg-[#1b82bb] pointer-events-none text-white" />
 
             <div class="min-w-0 flex-1 z-20 pointer-events-none">
               <div class="flex items-baseline justify-between gap-3">
                 <span class={cn('text-sm truncate', !m.seen && 'font-semibold')}>{senderName(m.from)}</span>
-                <span class="text-xs text-muted-foreground shrink-0">{fmtDate(m.date)}</span>
               </div>
               <p class={cn('text-sm truncate mt-0.5', !m.seen ? 'text-foreground' : 'text-muted-foreground')}>{m.subject}</p>
               {#if m.hasAttachments}
@@ -81,20 +79,33 @@
                   {#if busyUid === m.uid}<Loader2 class="size-4 animate-spin" />{:else}<Trash2 class="size-4" />{/if}
                 </button>
               </form>
+              <span class="text-xs text-muted-foreground shrink-0">{fmtDate(m.date)}</span>
             </div>
           </li>
         {/each}
       </ul>
-
-      <nav class="flex items-center justify-between p-4 text-sm border-t">
-        <Button href={`?page=${Math.max(1, data.page - 1)}`} variant="outline" size="sm" disabled={data.page <= 1}>
-          <ChevronLeft class="size-4" /> Anterior
-        </Button>
-        <span class="text-xs text-muted-foreground">Página {data.page} de {data.pages}</span>
-        <Button href={`?page=${Math.min(data.pages, data.page + 1)}`} variant="outline" size="sm" disabled={data.page >= data.pages}>
-          Siguiente <ChevronRight class="size-4" />
-        </Button>
-      </nav>
     {/if}
   </div>
+
+  {#if data.messages.length > 0}
+    <nav class="flex items-center justify-between px-6 py-4 text-sm border-t bg-card">
+      <a
+        href={`?page=${Math.max(1, data.page - 1)}`}
+        class="inline-flex items-center justify-center gap-2 border shadow transition-all duration-300 ease-in-out cursor-pointer rounded-3xl px-6 h-12 text-sm text-muted-foreground hover:bg-[#1a86c3] hover:text-gray-100"
+        class:pointer-events-none={data.page <= 1}
+        class:opacity-50={data.page <= 1}
+      >
+        <ChevronLeft class="size-4" /> Anterior
+      </a>
+      <span class="text-xs text-muted-foreground">Página {data.page} de {data.pages}</span>
+      <a
+        href={`?page=${Math.min(data.pages, data.page + 1)}`}
+        class="inline-flex items-center justify-center gap-2 border shadow transition-all duration-300 ease-in-out cursor-pointer rounded-3xl px-6 h-12 text-sm text-muted-foreground hover:bg-[#1a86c3] hover:text-gray-100"
+        class:pointer-events-none={data.page >= data.pages}
+        class:opacity-50={data.page >= data.pages}
+      >
+        Siguiente <ChevronRight class="size-4" />
+      </a>
+    </nav>
+  {/if}
 </div>
