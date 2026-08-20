@@ -277,9 +277,9 @@ export async function fetchMessage(creds: ImapCreds, mailbox: string, uid: numbe
       const detail: MessageDetail = {
         uid: msg.uid as number,
         subject: String(env.subject ?? parsed.subject ?? '(sin asunto)'),
-        from: formatAddr(env.from?.[0]) || addressText(parsed.from),
-        to: formatAddrList(env.to) || addressText(parsed.to),
-        cc: formatAddrList(env.cc) || addressText(parsed.cc),
+        from: addressValue(parsed.from) || formatAddr(env.from?.[0]) || '',
+        to: addressValue(parsed.to) || formatAddrList(env.to) || '',
+        cc: addressValue(parsed.cc) || formatAddrList(env.cc) || '',
         date,
         text,
         html,
@@ -325,10 +325,12 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-function addressText(v: unknown): string {
+function addressValue(v: unknown): string {
   if (!v) return '';
-  const obj = Array.isArray(v) ? (v[0] as { text?: string }) : (v as { text?: string });
-  return obj?.text ?? '';
+  if (Array.isArray(v)) {
+    return (v as { text?: string }[]).map((x) => x?.text ?? '').filter(Boolean).join(', ');
+  }
+  return (v as { text?: string })?.text ?? '';
 }
 
 export async function fetchAttachment(
