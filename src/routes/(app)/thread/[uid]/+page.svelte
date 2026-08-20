@@ -100,13 +100,13 @@
       </div>
 
       <!-- Attachments -->
-      {#if m.attachments.length > 0}
+      {#if m.attachments.filter((a) => !a.inline).length > 0}
         <div class="border-t mt-6 pt-4 space-y-2">
           <h2 class="text-sm font-medium flex items-center gap-2 mb-2">
-            <Paperclip class="size-4" /> Adjuntos ({m.attachments.length})
+            <Paperclip class="size-4" /> Adjuntos ({m.attachments.filter((a) => !a.inline).length})
           </h2>
           <ul class="grid sm:grid-cols-2 gap-2">
-            {#each m.attachments as a}
+            {#each m.attachments.filter((a) => !a.inline) as a}
               {@const href = `/api/attachment?uid=${data.uid}&mailbox=${encodeURIComponent(data.mailbox)}&filename=${encodeURIComponent(a.filename)}`}
               <li>
                 <a

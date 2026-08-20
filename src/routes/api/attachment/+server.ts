@@ -10,8 +10,9 @@ export const GET: RequestHandler = async ({ locals, url }) => {
   const uid = Number(url.searchParams.get('uid') ?? '0');
   const mailbox = url.searchParams.get('mailbox') ?? 'INBOX';
   const filename = url.searchParams.get('filename') ?? '';
-  if (!uid || !filename) throw error(400, 'Parámetros inválidos');
-  const attachment = await fetchAttachment({ user: locals.user.email, pass: password }, mailbox, uid, filename);
+  const cid = url.searchParams.get('cid') ?? null;
+  if (!uid) throw error(400, 'Parámetros inválidos');
+  const attachment = await fetchAttachment({ user: locals.user.email, pass: password }, mailbox, uid, filename, cid);
   if (!attachment) throw error(404, 'Adjunto no encontrado');
   return new Response(new Uint8Array(attachment.content), {
     headers: {

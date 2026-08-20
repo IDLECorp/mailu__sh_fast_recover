@@ -1,4 +1,5 @@
 import { ImapFlow } from 'imapflow';
+import { simpleParser, type ParsedMail } from 'mailparser';
 import { env } from '$env/dynamic/private';
 
 export interface ImapCreds {
@@ -44,6 +45,7 @@ export interface Attachment {
   contentType: string;
   size: number;
   contentId: string | null;
+  inline: boolean;
   content: Buffer;
 }
 
@@ -231,105 +233,60 @@ export async function listFolder(creds: ImapCreds, mailbox: string, page = 1): P
   }
 }
 
-function decodeBody(content: Buffer, encoding?: string): string {
-  const raw = content.toString('utf8');
-  switch ((encoding ?? '').toLowerCase()) {
-    case 'base64': {
-      try { return Buffer.from(raw.replace(/[^A-Za-z0-9+/=]/g, ''), 'base64').toString('utf8'); } catch { return raw; }
-    }
-    case 'quoted-printable': {
-      return raw
-        .replace(/=\r?\n/g, '')
-        .replace(/=([0-9A-F]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
-    }
-    default: return raw;
-  }
-}
-
 export async function fetchMessage(creds: ImapCreds, mailbox: string, uid: number): Promise<MessageDetail | null> {
   const client = imapClient(creds);
   await client.connect();
   try {
     const lock = await client.getMailboxLock(mailbox);
     try {
-      const msg = await client.fetchOne(String(uid), { uid: true, envelope: true, bodyStructure: true, source: true, internalDate: true, flags: true }, { uid: true });
+      const msg = await client.fetchOne(
+        String(uid),
+        { uid: true, envelope: true, source: true, internalDate: true, flags: true },
+        { uid: true }
+      );
       if (!msg) return null;
       const env = msg.envelope ?? {};
       const dateRaw = msg.internalDate;
       const date = dateRaw instanceof Date ? dateRaw : new Date(dateRaw ?? Date.now());
-      const raw = (msg.source as Buffer | undefined)?.toString('utf8') ?? '';
+      const sourceBuf = (msg.source as Buffer | undefined) ?? Buffer.alloc(0);
+
+      let parsed: ParsedMail;
+      try {
+        parsed = await simpleParser(sourceBuf);
+      } catch (e) {
+        console.error('imap fetchMessage parse error', (e as Error)?.message);
+        return null;
+      }
+
+      const text =
+        typeof parsed.text === 'string' && parsed.text.trim().length > 0
+          ? parsed.text
+          : typeof parsed.html === 'string'
+            ? stripHtml(parsed.html)
+            : '';
+      const html = typeof parsed.html === 'string' ? parsed.html : null;
+      const attachments: Attachment[] = (parsed.attachments ?? []).map((a) => ({
+        filename: a.filename || 'adjunto',
+        contentType: a.contentType || 'application/octet-stream',
+        size: a.size ?? a.content.length,
+        contentId: a.cid ?? null,
+        inline: (a.contentDisposition ?? '').toLowerCase() === 'inline',
+        content: a.content
+      }));
+
       const detail: MessageDetail = {
         uid: msg.uid as number,
-        subject: String(env.subject ?? '(sin asunto)'),
-        from: formatAddr(env.from?.[0]),
-        to: formatAddrList(env.to),
-        cc: formatAddrList(env.cc),
+        subject: String(env.subject ?? parsed.subject ?? '(sin asunto)'),
+        from: formatAddr(env.from?.[0]) || addressText(parsed.from),
+        to: formatAddrList(env.to) || addressText(parsed.to),
+        cc: formatAddrList(env.cc) || addressText(parsed.cc),
         date,
-        text: '',
-        html: null,
-        attachments: [],
+        text,
+        html,
+        attachments,
         inReplyTo: env.inReplyTo ?? null,
         messageId: env.messageId ?? null
       };
-
-      const structure = msg.bodyStructure as
-        | { contentType?: string; disposition?: string; dispositionParameters?: Map<string, string> | Record<string, string>; encoding?: string; part?: string; childNodes?: unknown[]; text?: string; size?: number }
-        | undefined;
-
-      const parts: { type: 'text' | 'html' | 'attachment'; contentType: string; disposition: string; part: string; encoding?: string; filename?: string; size?: number; contentId?: string | null }[] = [];
-
-      function walk(node: typeof structure, partPath: string): void {
-        if (!node) return;
-        const ct = (node.contentType ?? '').toLowerCase();
-        const disp = (node.disposition ?? '').toLowerCase();
-        if (node.childNodes?.length) {
-          node.childNodes.forEach((c, i) => walk(c as typeof structure, partPath ? `${partPath}.${i + 1}` : String(i + 1)));
-        } else {
-          const filename = (node.dispositionParameters as Map<string, string> | undefined)?.get?.('filename')
-            ?? (node.dispositionParameters as Record<string, string> | undefined)?.filename
-            ?? '';
-          parts.push({
-            type: disp === 'attachment' ? 'attachment' : (ct.includes('text/html') ? 'html' : 'text'),
-            contentType: node.contentType ?? 'application/octet-stream',
-            disposition: node.disposition ?? '',
-            part: node.part ?? partPath,
-            encoding: node.encoding,
-            filename,
-            size: node.size,
-            contentId: null
-          });
-        }
-      }
-      walk(structure, '1');
-
-      for (const p of parts) {
-        try {
-          const partNum = p.part;
-          const content = await client.fetchOne(String(uid), { uid: true, bodyParts: [partNum] }, { uid: true });
-          const buf = (content as { bodyParts?: Record<string, Buffer> }).bodyParts?.[partNum] as Buffer | undefined;
-          if (!buf) continue;
-          if (p.type === 'text') {
-            detail.text += decodeBody(buf, p.encoding) + '\n';
-          } else if (p.type === 'html') {
-            detail.html = decodeBody(buf, p.encoding);
-          } else if (p.type === 'attachment' && buf) {
-            detail.attachments.push({
-              filename: p.filename || 'adjunto',
-              contentType: p.contentType,
-              size: buf.length,
-              contentId: null,
-              content: buf
-            });
-          }
-        } catch (e) {
-          console.error('imap fetchMessage part', p.part, 'error', (e as Error).message);
-        }
-      }
-      void raw;
-
-      if (!detail.text && !detail.html) {
-        detail.text = raw;
-      }
 
       const flags = Array.from((msg.flags as Iterable<string> | undefined) ?? []);
       if (!flags.includes('\\Seen')) {
@@ -349,9 +306,46 @@ export async function fetchMessage(creds: ImapCreds, mailbox: string, uid: numbe
   }
 }
 
-export async function fetchAttachment(creds: ImapCreds, mailbox: string, uid: number, filename: string): Promise<Attachment | null> {
+function stripHtml(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<head[\s\S]*?<\/head>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<br\s*\/?>(?=)/gi, '\n')
+    .replace(/<\/(p|div|h[1-6]|li|tr|blockquote)>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function addressText(v: unknown): string {
+  if (!v) return '';
+  const obj = Array.isArray(v) ? (v[0] as { text?: string }) : (v as { text?: string });
+  return obj?.text ?? '';
+}
+
+export async function fetchAttachment(
+  creds: ImapCreds,
+  mailbox: string,
+  uid: number,
+  filename: string,
+  cid?: string | null
+): Promise<Attachment | null> {
   const detail = await fetchMessage(creds, mailbox, uid);
   if (!detail) return null;
+  if (cid) {
+    const target = cid.startsWith('<') ? cid : `<${cid}>`;
+    return (
+      detail.attachments.find((a) => a.contentId === target || a.contentId === cid) ?? null
+    );
+  }
   return detail.attachments.find((a) => a.filename === filename) ?? null;
 }
 

@@ -2,6 +2,7 @@ import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { getSessionPassword } from '$lib/server/auth';
 import { fetchMessage, type ImapCreds } from '$lib/server/imap';
+import { rewriteCidImages } from '$lib/sanitize';
 
 export const load: PageServerLoad = async ({ locals, params, url }) => {
   const sid = locals.sessionId;
@@ -13,5 +14,6 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
   const creds: ImapCreds = { user: locals.user.email, pass: password };
   const detail = await fetchMessage(creds, mailbox, uid);
   if (!detail) throw error(404, 'Mensaje no encontrado');
+  if (detail.html) detail.html = rewriteCidImages(detail.html, uid, mailbox);
   return { detail, mailbox, uid, user: locals.user };
 };

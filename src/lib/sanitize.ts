@@ -38,6 +38,16 @@ export function buildReplySubject(subject: string): string {
   return `Re: ${subject ?? ''}`;
 }
 
+export function rewriteCidImages(html: string, uid: number | string, mailbox: string): string {
+  if (!html) return html;
+  const safeMailbox = encodeURIComponent(mailbox);
+  const safeUid = encodeURIComponent(String(uid));
+  return html.replace(/cid:([^"')\s]+)/g, (_m, cid: string) => {
+    const safeCid = encodeURIComponent(cid.replace(/^<|>$/g, ''));
+    return `/api/attachment?uid=${safeUid}&mailbox=${safeMailbox}&cid=${safeCid}`;
+  });
+}
+
 export function buildReplyHeaders(headerBlock: string): string {
   return headerBlock.split('\n').map((l) => `> ${l}`).join('\n');
 }
