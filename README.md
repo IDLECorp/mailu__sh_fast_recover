@@ -1,28 +1,24 @@
-# Fast Mail — SH Fast Recover
+# Idec Mails — Webmail IDEC
 
-UI y backend TypeScript para acceder al correo Mailu del dominio `shfastrecover.com`. Reemplaza el Webmail Roundcube con una identidad visual propia (verde SH Fast), y opcionalmente el Admin Flask de Mailu si la REST API está habilitada.
+UI y backend TypeScript para acceder al correo Mailu del dominio `idec.ec`. Reemplaza el Webmail Roundcube con una identidad visual propia (azul IDEC), y opcionalmente el Admin Flask de Mailu si la REST API está habilitada.
 
-> **No reemplaza el servidor SMTP/IMAP.** Mailu ya corre en el VPS y atiende `@shfastrecover.com`, `@nexuscorpec.com` e `@idec.ec` desde `mail.nexuscorpec.com`. Fast habla con Mailu por DNS interno de Docker.
+> **No reemplaza el servidor SMTP/IMAP.** Mailu ya corre en el VPS y atiende `@idec.ec` desde `mail.idec.ec`. Idec Mails habla con Mailu por DNS interno de Docker.
 
-## Cuentas ya creadas en Mailu (dominio `shfastrecover.com`)
+## Cuentas en Mailu (dominio `idec.ec`)
 
-11 usuarios habilitados, todos validan contra Mailu IMAP:
+Cuentas habilitadas, validan contra Mailu IMAP:
 
 ```
-admin@shfastrecover.com              postmaster@shfastrecover.com
-info@shfastrecover.com               marketing@shfastrecover.com
-gerenciageneral@shfastrecover.com    talentohumano@shfastrecover.com
-callcenter@shfastrecover.com         sistemas@shfastrecover.com
-contabilidad@shfastrecover.com       servicioalcliente@shfastrecover.com
-departamentolegal@shfastrecover.com
+admin@idec.ec              postmaster@idec.ec
+info@idec.ec               sistemas@idec.ec
 ```
 
-Login probado: `postmaster@shfastrecover.com` → Dovecot responde `OK Logged in` contra `mailu-imap-1:143`.
+> Las cuentas deben existir en Mailu antes de usar Idec Mails.
 
 ## Stack
 
 - **SvelteKit 5** (runes) + `adapter-node` — SSR en un solo contenedor Node.
-- **Tailwind CSS 4** — paleta SH Fast (`#064a29 → #0d8f4f → #23c06f`), mismo origen que `/mailu/overrides/admin/static/theme-shfast.css`.
+- **Tailwind CSS 4** — paleta IDEC (`#0d5ea0 → #0277bd → #0091ea`), azules corporativos saturados.
 - **imapflow** — IMAP (`mailu-imap-1:143`).
 - **nodemailer** — SMTP submission (`mailu-smtp-1:587`).
 - **Mailu Admin REST API** (opcional, off por defecto) — gestión de dominios/usuarios.
@@ -31,11 +27,11 @@ Login probado: `postmaster@shfastrecover.com` → Dovecot responde `OK Logged in
 ## Arquitectura
 
 ```
-Internet → Traefik (coolify-proxy) ─ HTTPS mail.shfastrecover.com ─ fast-mails:3000
-                                                                     │
-                                     red `mailu_default` (Docker ext)─┼─ mailu-imap-1:143   (login IMAP)
-                                                                     ├─ mailu-smtp-1:587   (envío SMTP)
-                                                                     └─ mailu-admin-1:80   (REST, opcional)
+Internet → Traefik (coolify-proxy) ─ HTTPS mail.idec.ec ─ idec-mails:3000
+                                                                      │
+                                      red `mailu_default` (Docker ext)─┼─ mailu-imap-1:143   (login IMAP)
+                                                                      ├─ mailu-smtp-1:587   (envío SMTP)
+                                                                      └─ mailu-admin-1:80   (REST, opcional)
 ```
 
 El container está en **dos redes externas**:
@@ -45,7 +41,7 @@ El container está en **dos redes externas**:
 ## Estructura
 
 ```
-fast-emails/
+idec-mails/
 ├── src/
 │   ├── hooks.server.ts            # auth middleware (session HMAC-signed)
 │   ├── routes/
@@ -61,7 +57,7 @@ fast-emails/
 │   │   ├── mailu-admin.ts         # Mailu Admin REST API
 │   │   ├── auth.ts                # sessions in-memory, cookie HMAC-signed
 │   │   └── rate-limit.ts          # token bucket por IP/usuario
-│   └── app.css                    # Tailwind 4 + tokens SH Fast
+│   └── app.css                    # Tailwind 4 + tokens IDEC
 ├── Dockerfile                     # multi-stage node:20-alpine
 ├── docker-compose.prod.yml        # Traefik labels + redes externas
 ├── env.required                   # claves obligatorias (versionado)
@@ -81,15 +77,15 @@ fast-emails/
 | `MAILU_SMTP_HOST` | Default `mailu-smtp-1`. |
 | `MAILU_SMTP_PORT` | `587` STARTTLS o `465` implícito. |
 | `MAILU_ADMIN_URL` | Default `http://mailu-admin-1:80`. |
-| `MAILU_API_KEY` | Si vacío, `/admin` se deshabilita con un banner y solo gestiona desde `mail.nexuscorpec.com/admin`. Si lo configurás, debe ser igual al `API_TOKEN` de Mailu. |
-| `VITE_ADMIN_DOMAINS` | Dominios cuyas cuentas pueden ver `/admin`. Default `shfastrecover.com`. |
-| `MAIL_DOMAIN` | Dominio del cual se sirve Fast. `shfastrecover.com`. |
+| `MAILU_API_KEY` | Si vacío, `/admin` se deshabilita con un banner y solo gestiona desde `mail.idec.ec/admin`. Si lo configurás, debe ser igual al `API_TOKEN` de Mailu. |
+| `VITE_ADMIN_DOMAINS` | Dominios cuyas cuentas pueden ver `/admin`. Default `idec.ec`. |
+| `MAIL_DOMAIN` | Dominio del cual sirve Idec Mails. `idec.ec`. |
 
 ## Seguridad SMTP/IMAP
 
 - TLS terminado en Traefik (Let's Encrypt) para la web.
 - IMAP STARTTLS interno; SMTP submission STARTTLS interno con auth.
-- Sesiones HMAC-signed `fast_sid`, **password solo en RAM del server** (no en cookies ni logs).
+- Sesiones HMAC-signed `idec_sid`, **password solo en RAM del server** (no en cookies ni logs).
 - Rate-limit: 10 logins/min/IP, 30 sends/min/IP+user, 20 admin ops/min/IP.
 - `BODY_SIZE_LIMIT=5242880` (5MB).
 - Cookies strict: `httpOnly`, `secure`, `sameSite=lax`.
@@ -99,27 +95,27 @@ fast-emails/
 ```bash
 # En el VPS (como docker-steven)
 ssh -i ~/.ssh/docker-steven docker-steven@2a02:4780:75:1d76::1
-git clone https://github.com/Corporation-IDLE/fast-emails.git /home/docker-steven/fast-mails
-cd /home/docker-steven/fast-mails
+git clone https://github.com/Corporation-IDLE/idec-mails.git /home/docker-steven/idec-mails
+cd /home/docker-steven/idec-mails
 cp .env.example .env
 nano .env   # rellenar SESSION_SECRET y opcionalmente MAILU_API_KEY
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 Deploy automático por GitHub Actions requiere:
-1. Crear el repo `Corporation-IDLE/fast-emails`.
-2. Registrar self-hosted runner nuevo `actions-runner-fast` en el VPS.
-3. Apuntar `scripts/wait-healthy.sh` a `fast-mails 30 2 3000` (ya configurado).
+1. Crear el repo `Corporation-IDLE/idec-mails`.
+2. Registrar self-hosted runner nuevo `idec-runner` en el VPS.
+3. Apuntar `scripts/wait-healthy.sh` a `idec-mails 30 2 3000` (ya configurado).
 
 ## Prerequisitos Mailu (VPS con sudo/root)
 
-El dominio `shfastrecover.com` **ya existe en Mailu** (auditoría confirmó 11 usuarios activos). Faltaría solo:
+El dominio `idec.ec` **ya debe existir en Mailu**. Faltaría solo:
 
-1. **DNS**: crear `A mail.shfastrecover.com → 2.24.206.75` (no existe todavía).
-2. (Opcional) Agregar `mail.shfastrecover.com` a `HOSTNAMES=` en `/mailu/mailu.env` si querés que Mailu también escuche por ese hostname público. **No es requerido para que Fast funcione** — Fast habla con Mailu por DNS interno (`mailu-imap-1`).
-3. **DKIM**: publicar `<selector>._domainkey.shfastrecover.com` (ver selector en `mail.nexuscorpec.com/admin`).
+1. **DNS**: crear `A mail.idec.ec → <IP del VPS>` (no existe todavía).
+2. (Opcional) Agregar `mail.idec.ec` a `HOSTNAMES=` en `/mailu/mailu.env` si querés que Mailu también escuche por ese hostname público. **No es requerido para que Idec Mails funcione** — Idec Mails habla con Mailu por DNS interno (`mailu-imap-1`).
+3. **DKIM**: publicar `<selector>._domainkey.idec.ec` (ver selector en la admin de Mailu).
 4. **DMARC**: subir de `p=none` → `p=quarantine` con `pct=10` inicial.
-5. **(Opcional) Habilitar REST API**: en `/mailu/mailu.env` poner `API=true` y `API_TOKEN=<token>` → reiniciar Mailu → copiar el mismo token a `MAILU_API_KEY` del `.env` de Fast.
+5. **(Opcional) Habilitar REST API**: en `/mailu/mailu.env` poner `API=true` y `API_TOKEN=<token>` → reiniciar Mailu → copiar el mismo token a `MAILU_API_KEY` del `.env` de Idec Mails.
 
 ## Pruebas locales
 
@@ -127,15 +123,15 @@ El dominio `shfastrecover.com` **ya existe en Mailu** (auditoría confirmó 11 u
 npm install
 npm run dev
 # http://localhost:5173 → /login
-# Probá con: postmaster@shfastrecover.com / <password real>
+# Probá con: postmaster@idec.ec / <password real>
 ```
 
-Para probar contra Mailu real desde tu laptop (sin estar en la red Docker),Cambiar en tu `.env` local:
+Para probar contra Mailu real desde tu laptop (sin estar en la red Docker), cambiar en tu `.env` local:
 
 ```
-MAILU_IMAP_HOST=mail.nexuscorpec.com
+MAILU_IMAP_HOST=mail.idec.ec
 MAILU_IMAP_PORT=993
-MAILU_SMTP_HOST=mail.nexuscorpec.com
+MAILU_SMTP_HOST=mail.idec.ec
 MAILU_SMTP_PORT=465
 ```
 
@@ -151,16 +147,15 @@ MAILU_SMTP_PORT=465
 - [ ] Persistencia de sesiones con Redis
 - [ ] Búsqueda IMAP (`SEARCH`)
 
-## Auditoría inicial (13 Jul 2026)
+## Auditoría inicial (Jul 2026)
 
 | | |
 |---|---|
-| Dominio en Mailu | `shfastrecover.com` ✅ |
-| Cuentas habilitadas | 11 ✅ |
-| Login IMAP interno | `mailu-imap-1:143` ✅ (`postmaster@shfastrecover.com` OK) |
-| Mailu REST API | `API=false` (admin deshabilitado en Fast; uses `mail.nexuscorpec.com/admin`) |
-| MX shfastrecover.com | `mail.nexuscorpec.com` (comparte MTA con Nexus) ✅ |
-| SPF | `v=spf1 mx a:mail.nexuscorpec.com ~all` ✅ |
+| Dominio en Mailu | `idec.ec` ✅ |
+| Cuentas habilitadas | Verificar en admin de Mailu |
+| Login IMAP interno | `mailu-imap-1:143` ✅ |
+| Mailu REST API | `API=false` (admin deshabilitado; usar `mail.idec.ec/admin`) |
+| MX idec.ec | Configurar `mail.idec.ec` |
+| SPF | Configurar `v=spf1 mx a:mail.idec.ec ~all` |
 | DMARC | `v=DMARC1; p=none` (subir a quarantine) |
 | DKIM | pendiente publicar en DNS |
-| Tema visual Mailu existente | `/mailu/overrides/admin/static/theme-shfast.css` 🟢 |

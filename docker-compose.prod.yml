@@ -3,8 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: fast-mails-prod:latest
-    container_name: fast-mails
+    image: idec-mails:latest
+    container_name: idec-mails
     restart: unless-stopped
     env_file:
       - .env
@@ -20,18 +20,18 @@ services:
       - traefik.enable=true
       - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
       - traefik.http.middlewares.gzip.compress=true
-      - traefik.http.routers.http-0-fast.entryPoints=http
-      - traefik.http.routers.http-0-fast.middlewares=redirect-to-https
-      - traefik.http.routers.http-0-fast.rule=Host(`mail.shfastrecover.com`)
-      - traefik.http.routers.http-0-fast.service=http-0-fast
-      - traefik.http.routers.https-0-fast.entryPoints=https
-      - traefik.http.routers.https-0-fast.middlewares=gzip
-      - traefik.http.routers.https-0-fast.rule=Host(`mail.shfastrecover.com`)
-      - traefik.http.routers.https-0-fast.service=https-0-fast
-      - traefik.http.routers.https-0-fast.tls=true
-      - traefik.http.routers.https-0-fast.tls.certresolver=letsencrypt
-      - traefik.http.services.http-0-fast.loadbalancer.server.port=3000
-      - traefik.http.services.https-0-fast.loadbalancer.server.port=3000
+      - traefik.http.routers.http-0-idec.entryPoints=http
+      - traefik.http.routers.http-0-idec.middlewares=redirect-to-https
+      - traefik.http.routers.http-0-idec.rule=Host(`mail.idec.ec`)
+      - traefik.http.routers.http-0-idec.service=http-0-idec
+      - traefik.http.routers.https-0-idec.entryPoints=https
+      - traefik.http.routers.https-0-idec.middlewares=gzip
+      - traefik.http.routers.https-0-idec.rule=Host(`mail.idec.ec`)
+      - traefik.http.routers.https-0-idec.service=https-0-idec
+      - traefik.http.routers.https-0-idec.tls=true
+      - traefik.http.routers.https-0-idec.tls.certresolver=letsencrypt
+      - traefik.http.services.http-0-idec.loadbalancer.server.port=3000
+      - traefik.http.services.https-0-idec.loadbalancer.server.port=3000
 
 networks:
   coolify:

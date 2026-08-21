@@ -3,7 +3,7 @@ import { env } from '$env/dynamic/private';
 const REDIS_URL = env.REDIS_URL;
 
 export const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
-export const SESSION_COOKIE = 'fast_sid';
+export const SESSION_COOKIE = 'idec_sid';
 
 let _client: import('ioredis').default | null = null;
 

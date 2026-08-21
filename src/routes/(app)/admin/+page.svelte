@@ -34,7 +34,7 @@
   void data;
 </script>
 
-<svelte:head><title>Admin · Fast Mail</title></svelte:head>
+<svelte:head><title>Admin · Idec Mails</title></svelte:head>
 
 <div class="flex h-full flex-col pt-4">
   <div class="bg-card px-4 py-3 sm:px-6 flex items-center gap-2">
@@ -62,7 +62,7 @@
                   y <code class="text-xs bg-muted px-1.5 py-0.5 rounded">API_TOKEN=...</code> en
                   Mailu, reiniciá, y configurá
                   <code class="text-xs bg-muted px-1.5 py-0.5 rounded">MAILU_API_KEY</code>
-                  en el <code class="text-xs bg-muted px-1.5 py-0.5 rounded">.env</code> de Fast.
+                  en el <code class="text-xs bg-muted px-1.5 py-0.5 rounded">.env</code> de Idec.
                 </p>
                 <a
                   href="https://mail.nexuscorpec.com/admin"

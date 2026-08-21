@@ -51,7 +51,7 @@
   );
 </script>
 
-<svelte:head><title>Buscar · Fast Mail</title></svelte:head>
+<svelte:head><title>Buscar · Idec Mails</title></svelte:head>
 
 <div class="flex h-full flex-col pt-4">
   <div class="bg-card px-4 py-3 sm:px-6">
@@ -114,7 +114,7 @@
             <Avatar
               alt={m.from}
               fallback={senderName(m.from).slice(0, 2).toUpperCase()}
-              class="size-9 mt-0.5 z-20 bg-[#1b82bb] pointer-events-none text-white"
+              class="size-9 mt-0.5 z-20 bg-[#0d5ea0] pointer-events-none text-white"
             />
             <div class="min-w-0 flex-1 z-20 pointer-events-none">
               <div class="flex items-baseline justify-between gap-3">

@@ -19,13 +19,13 @@ ENV HOSTNAME=0.0.0.0
 ENV BODY_SIZE_LIMIT=5242880
 
 RUN apk add --no-cache wget curl tini
-RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 fast
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 idec
 
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 
-USER fast
+USER idec
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=25s --retries=3 \

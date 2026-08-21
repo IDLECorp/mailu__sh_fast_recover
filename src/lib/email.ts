@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto';
 
 function boundary(): string {
-  return '----=_FastMail_' + randomToken(24);
+  return '----=_IdecMail_' + randomToken(24);
 }
 
 function randomToken(n: number): string {
@@ -80,7 +80,7 @@ export function buildMime(from: string, input: SendMailInput, attachments: Attac
   headers.push(`Subject: ${encodeHeader(input.subject) ?? ''}`);
   headers.push(`Date: ${new Date().toUTCString()}`);
   headers.push('MIME-Version: 1.0');
-  const msgId = `${randomToken(24)}@fastmail.local`;
+  const msgId = `${randomToken(24)}@idecmails.local`;
   headers.push(`Message-ID: <${msgId}>`);
   if (input.replyTo) headers.push(`Reply-To: ${encodeHeader(input.replyTo)}`);
 

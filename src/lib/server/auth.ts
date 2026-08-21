@@ -46,11 +46,11 @@ async function getSessionRaw(sid: string): Promise<StoredSession | null> {
   if (await pingRedis()) {
     try {
       const c = await redisClient();
-      const raw = await c.get(`fast:session:${sid}`);
+      const raw = await c.get(`idec:session:${sid}`);
       if (!raw) return null;
       const data = JSON.parse(raw) as StoredSession;
       if (Date.now() - data.createdAt > SESSION_TTL_SECONDS * 1000) {
-        await c.del(`fast:session:${sid}`);
+        await c.del(`idec:session:${sid}`);
         return null;
       }
       return data;
@@ -72,7 +72,7 @@ async function setSessionRaw(sid: string, data: StoredSession): Promise<void> {
   if (await pingRedis()) {
     try {
       const c = await redisClient();
-      await c.set(`fast:session:${sid}`, JSON.stringify(data), 'EX', SESSION_TTL_SECONDS);
+      await c.set(`idec:session:${sid}`, JSON.stringify(data), 'EX', SESSION_TTL_SECONDS);
     } catch (e) {
       console.error('redis setSessionRaw', (e as Error).message);
     }
@@ -84,7 +84,7 @@ async function deleteSessionRaw(sid: string): Promise<void> {
   if (await pingRedis()) {
     try {
       const c = await redisClient();
-      await c.del(`fast:session:${sid}`);
+      await c.del(`idec:session:${sid}`);
     } catch (e) {
       console.error('redis deleteSessionRaw', (e as Error).message);
     }

@@ -39,7 +39,7 @@
   }
 </script>
 
-<svelte:head><title>Redactar · Fast Mail</title></svelte:head>
+<svelte:head><title>Redactar · Idec Mails</title></svelte:head>
 
 <div class="flex h-full flex-col pt-4">
   <div class="bg-card px-4 py-3 sm:px-6 flex items-center gap-2">

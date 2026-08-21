@@ -30,7 +30,7 @@
   }
 </script>
 
-<svelte:head><title>{m.subject} · Fast Mail</title></svelte:head>
+<svelte:head><title>{m.subject} · Idec Mails</title></svelte:head>
 
 <div class="flex h-full flex-col pt-4">
   <!-- Top bar -->
@@ -70,7 +70,7 @@
         <Avatar
           alt={m.from}
           fallback={senderName.slice(0, 2).toUpperCase()}
-          class="size-10 bg-[#1b82bb] text-white"
+          class="size-10 bg-[#0d5ea0] text-white"
         />
         <div class="min-w-0 flex-1">
           <div class="flex items-baseline justify-between gap-2">

@@ -59,7 +59,7 @@
   };
 </script>
 
-<svelte:head><title>Fast Mail</title></svelte:head>
+<svelte:head><title>Idec Mails</title></svelte:head>
 
 <div class="flex h-screen overflow-hidden">
   <!-- Mobile backdrop -->
@@ -74,7 +74,7 @@
   <!-- Sidebar -->
   <aside
     class={cn(
-      'absolute px-2 inset-y-0 left-0 z-40 w-80 bg-[#e6eff5]/50 flex flex-col transition-transform lg:static lg:translate-x-0',
+      'absolute px-2 inset-y-0 left-0 z-40 w-80 bg-[#d5e4f5]/50 flex flex-col transition-transform lg:static lg:translate-x-0',
       sidebarOpen ? 'translate-x-0' : '-translate-x-full',
     )}
   >
@@ -83,14 +83,14 @@
         <Mail class="size-4" />
       </div>
       <div class="flex flex-col -space-y-0.5">
-        <span class="font-semibold tracking-tight">Fast Mail</span>
-        <span class="text-xs uppercase tracking-wider text-muted-foreground">SH Fast Recover</span>
+        <span class="font-semibold tracking-tight">Idec Mails</span>
+        <span class="text-xs uppercase tracking-wider text-muted-foreground">Idec</span>
       </div>
     </div>
 
     <div class="py-4">
       <button
-        class="w-full cursor shadow text-gray-800 hover:text-white transition-all duration-300 hover:bg-[#1b82bb] cursor-pointer gap-2 flex items-center justify-center h-12 rounded-3xl"
+        class="w-full cursor shadow text-gray-800 hover:text-white transition-all duration-300 hover:bg-[#0d5ea0] cursor-pointer gap-2 flex items-center justify-center h-12 rounded-3xl"
         onclick={() => { sidebarOpen = false; composeOpen = true; }}
       >
         <Plus class="size-4" />
@@ -143,7 +143,7 @@
 
   <!-- Main -->
   <div class="flex flex-1 flex-col overflow-hidden">
-    <header class="flex h-20 bg-[#e6eff5]/50 items-center gap-3 border-b px-4 lg:px-6">
+    <header class="flex h-20 bg-[#d5e4f5]/50 items-center gap-3 border-b px-4 lg:px-6">
       <button
         class="lg:hidden rounded-md p-2 hover:bg-accent"
         aria-label="Abrir menú"
@@ -174,7 +174,7 @@
           aria-expanded={userMenuOpen}
         >
           <Avatar
-            class="bg-[#1a86c3] cursor-pointer w-10 h-10 text-white"
+            class="bg-[#0d5ea0] cursor-pointer w-10 h-10 text-white"
             alt={data.user?.email ?? ''}
             fallback={data.user?.email ?? ''}
           />
@@ -186,7 +186,7 @@
           >
             <div class="px-3 py-4 border-b flex flex-col items-center gap-2">
               <Avatar
-                class="w-20 h-20 bg-[#bfe5f4] text-2xl"
+                class="w-20 h-20 bg-[#a8d8f0] text-2xl"
                 alt={data.user?.email ?? ''}
                 fallback={data.user?.email ?? ''}
               />
@@ -197,7 +197,7 @@
               <form method="POST" action="/logout">
                 <button
                   type="submit"
-                  class="flex w-full border shadow transition-all duration-300 ease-in-out cursor-pointer rounded-3xl items-center gap-2 px-12 h-12 text-sm text-muted-foreground hover:bg-[#1a86c3] hover:text-gray-100"
+                  class="flex w-full border shadow transition-all duration-300 ease-in-out cursor-pointer rounded-3xl items-center gap-2 px-12 h-12 text-sm text-muted-foreground hover:bg-[#0d5ea0] hover:text-gray-100"
                 >
                   <LogOut class="size-4" />
                   Cerrar sesión

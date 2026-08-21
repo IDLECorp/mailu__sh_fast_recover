@@ -25,7 +25,7 @@
 </script>
 
 <svelte:head>
-  <title>Iniciar sesión · Fast Mail</title>
+  <title>Iniciar sesión · Idec Mails</title>
 </svelte:head>
 
 <main class="h-dvh relative flex">
@@ -61,7 +61,7 @@
 
   <div class="flex-1 flex items-center justify-center py-10">
     <Card class="px-20">
-      <h3 class="text-2xl font-semibold text-center pb-8">Sh Fast Recover</h3>
+      <h3 class="text-2xl font-semibold text-center pb-8">Idec</h3>
       <CardHeader class="space-y-1">
         <CardTitle class="text-lg font-medium">Bienvenido</CardTitle>
         <CardDescription class="text-gray-500 pb-6"
@@ -99,7 +99,7 @@
                 autocomplete="username"
                 required
                 bind:value={email}
-                placeholder="correo@shfastrecover.com"
+                placeholder="correo@idec.ec"
                 class="pl-9"
               />
             </div>

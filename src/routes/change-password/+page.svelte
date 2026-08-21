@@ -14,7 +14,7 @@
   let showConfirm = $state(false);
 </script>
 
-<svelte:head><title>Cambiar contraseña · Fast Mail</title></svelte:head>
+<svelte:head><title>Cambiar contraseña · Idec Mails</title></svelte:head>
 
 <main class="min-h-screen flex items-center justify-center px-4 py-10">
   <div class="w-full max-w-md space-y-4">
@@ -28,7 +28,7 @@
           {#if data.currentPassword}
             Ingresá una nueva contraseña para <span class="font-medium">{data.email}</span>
           {:else}
-            Tu cuenta <span class="font-medium">{data.email}</span> tiene una contraseña temporal. Necesitás cambiarla antes de usar Fast Mail.
+            Tu cuenta <span class="font-medium">{data.email}</span> tiene una contraseña temporal. Necesitás cambiarla antes de usar Idec Mails.
           {/if}
         </p>
       </div>

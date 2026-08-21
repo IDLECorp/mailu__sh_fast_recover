@@ -26,7 +26,7 @@
   }
 </script>
 
-<svelte:head><title>{data.mailboxLabel} · Fast Mail</title></svelte:head>
+<svelte:head><title>{data.mailboxLabel} · Idec Mails</title></svelte:head>
 
 <div class="flex h-full flex-col pt-4">
   <div class="bg-card px-4 py-3 sm:px-6">
@@ -52,7 +52,7 @@
               <span class="absolute left-1 top-1/2 -translate-y-1/2 size-1.5 rounded-full bg-primary"></span>
             {/if}
 
-            <Avatar alt={m.from} fallback={senderInitials(m.from)} class="size-9 mt-0.5 z-20 bg-[#1b82bb] pointer-events-none text-white" />
+            <Avatar alt={m.from} fallback={senderInitials(m.from)} class="size-9 mt-0.5 z-20 bg-[#0d5ea0] pointer-events-none text-white" />
 
             <div class="min-w-0 flex-1 z-20 pointer-events-none">
               <div class="flex items-baseline justify-between gap-3">
@@ -91,7 +91,7 @@
     <nav class="flex items-center justify-between px-6 py-4 text-sm border-t bg-card">
       <a
         href={`?page=${Math.max(1, data.page - 1)}`}
-        class="inline-flex items-center justify-center gap-2 border shadow transition-all duration-300 ease-in-out cursor-pointer rounded-3xl px-6 h-12 text-sm text-muted-foreground hover:bg-[#1a86c3] hover:text-gray-100"
+        class="inline-flex items-center justify-center gap-2 border shadow transition-all duration-300 ease-in-out cursor-pointer rounded-3xl px-6 h-12 text-sm text-muted-foreground hover:bg-[#0d5ea0] hover:text-gray-100"
         class:pointer-events-none={data.page <= 1}
         class:opacity-50={data.page <= 1}
       >
@@ -100,7 +100,7 @@
       <span class="text-xs text-muted-foreground">Página {data.page} de {data.pages}</span>
       <a
         href={`?page=${Math.min(data.pages, data.page + 1)}`}
-        class="inline-flex items-center justify-center gap-2 border shadow transition-all duration-300 ease-in-out cursor-pointer rounded-3xl px-6 h-12 text-sm text-muted-foreground hover:bg-[#1a86c3] hover:text-gray-100"
+        class="inline-flex items-center justify-center gap-2 border shadow transition-all duration-300 ease-in-out cursor-pointer rounded-3xl px-6 h-12 text-sm text-muted-foreground hover:bg-[#0d5ea0] hover:text-gray-100"
         class:pointer-events-none={data.page >= data.pages}
         class:opacity-50={data.page >= data.pages}
       >

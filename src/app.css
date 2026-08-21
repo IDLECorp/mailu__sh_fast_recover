@@ -31,23 +31,34 @@
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.21 0.02 250);
+
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.21 0.02 250);
+
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.21 0.02 250);
-  --primary: oklch(0.55 0.18 230);
+
+  /* Azul corporativo oscuro */
+  --primary: oklch(0.38 0.16 255);
   --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.96 0.02 230);
-  --secondary-foreground: oklch(0.28 0.02 230);
-  --muted: oklch(0.97 0.01 230);
-  --muted-foreground: oklch(0.55 0.02 250);
-  --accent: oklch(0.93 0.05 230);
-  --accent-foreground: oklch(0.28 0.02 230);
+
+  --secondary: oklch(0.93 0.03 250);
+  --secondary-foreground: oklch(0.28 0.02 250);
+
+  --muted: oklch(0.96 0.01 250);
+  --muted-foreground: oklch(0.50 0.02 250);
+
+  --accent: oklch(0.88 0.05 250);
+  --accent-foreground: oklch(0.25 0.02 250);
+
   --destructive: oklch(0.58 0.22 27);
   --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.92 0.01 250);
-  --input: oklch(0.92 0.01 250);
-  --ring: oklch(0.55 0.18 230);
+
+  --border: oklch(0.90 0.01 250);
+  --input: oklch(0.90 0.01 250);
+
+  --ring: oklch(0.38 0.16 255);
+
   --radius: 0.5rem;
 }
 
@@ -63,7 +74,7 @@ html, body {
 }
 
 ::selection {
-  background: oklch(0.55 0.18 230 / 0.2);
+  background: oklch(0.42 0.22 250 / 0.2);
 }
 
 input, textarea, button, select {
