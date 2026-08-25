@@ -46,6 +46,7 @@ async function getSessionRaw(sid: string): Promise<StoredSession | null> {
   if (await pingRedis()) {
     try {
       const c = await redisClient();
+      if (!c) throw new Error('Redis client unavailable');
       const raw = await c.get(`fast:session:${sid}`);
       if (!raw) return null;
       const data = JSON.parse(raw) as StoredSession;
@@ -72,6 +73,7 @@ async function setSessionRaw(sid: string, data: StoredSession): Promise<void> {
   if (await pingRedis()) {
     try {
       const c = await redisClient();
+      if (!c) throw new Error('Redis client unavailable');
       await c.set(`fast:session:${sid}`, JSON.stringify(data), 'EX', SESSION_TTL_SECONDS);
     } catch (e) {
       console.error('redis setSessionRaw', (e as Error).message);
@@ -84,6 +86,7 @@ async function deleteSessionRaw(sid: string): Promise<void> {
   if (await pingRedis()) {
     try {
       const c = await redisClient();
+      if (!c) throw new Error('Redis client unavailable');
       await c.del(`fast:session:${sid}`);
     } catch (e) {
       console.error('redis deleteSessionRaw', (e as Error).message);
