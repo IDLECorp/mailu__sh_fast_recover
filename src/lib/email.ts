@@ -63,6 +63,7 @@ export interface SendMailInput {
   cc?: string;
   bcc?: string;
   replyTo?: string;
+  priority?: 'low' | 'normal' | 'high';
 }
 
 export interface AttachmentBytes {
@@ -78,6 +79,13 @@ export function buildMime(from: string, input: SendMailInput, attachments: Attac
   if (input.cc) headers.push(`Cc: ${encodeHeader(input.cc)}`);
   if (input.bcc) headers.push(`Bcc: ${encodeHeader(input.bcc)}`);
   headers.push(`Subject: ${encodeHeader(input.subject) ?? ''}`);
+  if (input.priority === 'high') {
+    headers.push('X-Priority: 1 (Highest)');
+    headers.push('Importance: high');
+  } else if (input.priority === 'low') {
+    headers.push('X-Priority: 5 (Lowest)');
+    headers.push('Importance: low');
+  }
   headers.push(`Date: ${new Date().toUTCString()}`);
   headers.push('MIME-Version: 1.0');
   const msgId = `${randomToken(24)}@fastmail.local`;

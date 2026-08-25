@@ -66,6 +66,13 @@ html, body {
   background: oklch(0.55 0.18 230 / 0.2);
 }
 
+/* Composer (ported from mail_urbaterra): hover gradient for the Send button.
+   Only .brand-action is referenced by the ported composer components. */
+.brand-action:hover {
+  background: linear-gradient(135deg, oklch(0.45 0.14 155), oklch(0.56 0.14 215));
+  color: white;
+}
+
 input, textarea, button, select {
   font: inherit;
 }

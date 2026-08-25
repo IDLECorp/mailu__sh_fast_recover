@@ -7,18 +7,53 @@
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
-  import { Textarea } from '$lib/components/ui/textarea';
+  import RichTextEditor from '$lib/components/RichTextEditor.svelte';
+  import { plainTextToHtml } from '$lib/compose-html';
+  import {
+    buildSignatureHtml,
+    containsSignature,
+    removeSignatureFromHtml,
+  } from '$lib/compose-signature';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
   let loading = $state(false);
   let savingDraft = $state(false);
   let to = $state(data.prefill?.to ?? '');
   let cc = $state(data.prefill?.cc ?? '');
+  let bcc = $state('');
   let subject = $state(data.prefill?.subject ?? '');
   let text = $state(data.prefill?.body ?? '');
+  let includeSignature = $state(true);
+
+  // Diseño §7.4 — HTML inicial: línea vacía de escritura + firma (si el
+  // checkbox está activo) + contenido citado, en ese orden y una sola vez.
+  // [C3/C7 — diseño §14.1] La cita de responder/reenviar sigue siendo texto
+  // plano con "> " por línea (no se convierte a <blockquote>: sería cambiar
+  // una funcionalidad existente no pedida); la firma queda antes de ese
+  // bloque citado y fuera de él, satisfaciendo la intención de CA-22 sin
+  // alterar `(app)/compose/+page.server.ts:53-57`.
+  const quotedHtml = plainTextToHtml(data.prefill?.body ?? '');
+  let html = $state(
+    '<div><br></div>' + (includeSignature ? buildSignatureHtml(data.user) : '') + quotedHtml,
+  );
   let showCc = $state(false);
+  let showBcc = $state(false);
+  let priority = $state('normal');
   let files = $state<File[]>([]);
   let dragging = $state(false);
+
+  /** Diseño §7.5 — toggle "Incluir firma" (RF-24), mismo comportamiento que
+   * en `ComposeModal.svelte`. Cambiar `html` dispara el `$effect` del editor
+   * (E6, T-10), que actualiza `text` en el mismo paso (CA-24, coherencia
+   * html/text de spec §5). */
+  function onToggleSignature(next: boolean): void {
+    includeSignature = next;
+    if (next) {
+      if (!containsSignature(html)) html = html + buildSignatureHtml(data.user);
+    } else {
+      html = removeSignatureFromHtml(html);
+    }
+  }
 
   function onFiles(ev: Event): void {
     const target = ev.target as HTMLInputElement;
@@ -87,10 +122,25 @@
                   required
                   bind:value={to}
                 />
-                {#if !showCc}
-                  <Button type="button" variant="outline" size="sm" onclick={() => (showCc = true)}
-                    >Cc</Button
-                  >
+                {#if !showCc || !showBcc}
+                  <div class="flex gap-1">
+                    {#if !showCc}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onclick={() => (showCc = true)}>Cc</Button
+                      >
+                    {/if}
+                    {#if !showBcc}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onclick={() => (showBcc = true)}>Cco</Button
+                      >
+                    {/if}
+                  </div>
                 {/if}
               </div>
             </div>
@@ -109,6 +159,34 @@
               </div>
             {/if}
 
+            {#if showBcc}
+              <div class="space-y-2">
+                <Label for="bcc">Cco</Label>
+                <Input
+                  id="bcc"
+                  name="bcc"
+                  type="email"
+                  multiple
+                  placeholder="copia oculta"
+                  bind:value={bcc}
+                />
+              </div>
+            {/if}
+
+            <div class="space-y-2">
+              <Label for="priority">Prioridad</Label>
+              <select
+                id="priority"
+                name="priority"
+                bind:value={priority}
+                class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="normal">Normal</option>
+                <option value="high">Alta</option>
+                <option value="low">Baja</option>
+              </select>
+            </div>
+
             <div class="space-y-2">
               <Label for="subject">Asunto</Label>
               <Input
@@ -122,18 +200,22 @@
             </div>
 
             <div class="space-y-2">
-              <Label for="text">Mensaje</Label>
-              <Textarea
-                id="text"
-                name="text"
-                rows={10}
-                required
-                bind:value={text}
-                class="font-mono"
-              />
+              <Label for="message-editor">Mensaje</Label>
+              <RichTextEditor id="message-editor" bind:html bind:text minHeightClass="min-h-64" />
             </div>
 
-            <input type="hidden" name="html" value="" />
+            <label class="flex items-center gap-2 text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={includeSignature}
+                onchange={(e) => onToggleSignature((e.currentTarget as HTMLInputElement).checked)}
+                class="size-4 rounded border-input"
+              />
+              Incluir firma
+            </label>
+
+            <input type="hidden" name="text" value={text} />
+            <input type="hidden" name="html" value={html} />
 
             <!-- Attachments -->
             <div class="space-y-2">
@@ -205,8 +287,11 @@
 
           <form method="POST" id="draftForm" action="?/draft" class="hidden">
             <input type="hidden" name="to" value={to} />
+            <input type="hidden" name="cc" value={cc} />
+            <input type="hidden" name="bcc" value={bcc} />
             <input type="hidden" name="subject" value={subject} />
             <input type="hidden" name="text" value={text} />
+            <input type="hidden" name="html" value={html} />
           </form>
         </CardContent>
       </Card>

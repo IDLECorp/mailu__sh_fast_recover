@@ -215,4 +215,4 @@
   </div>
 </div>
 
-<ComposeModal show={composeOpen} onClose={() => (composeOpen = false)} />
+<ComposeModal show={composeOpen} onClose={() => (composeOpen = false)} user={data.user} />
