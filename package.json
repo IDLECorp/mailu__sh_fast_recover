@@ -4,11 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "prepare": "svelte-kit sync",
     "dev": "vite dev --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "typecheck": "svelte-kit sync && tsc --noEmit"
+    "typecheck": "svelte-kit sync && tsc --noEmit",
+    "test": "vitest",
+    "test:ci": "vitest run"
   },
   "devDependencies": {
     "@sveltejs/adapter-node": "^5.2.12",
@@ -22,7 +25,8 @@
     "svelte-check": "^4.1.5",
     "tailwindcss": "^4.1.3",
     "typescript": "^5.8.2",
-    "vite": "^6.2.0"
+    "vite": "^6.2.0",
+    "vitest": "4.1.11"
   },
   "dependencies": {
     "@fontsource-variable/montserrat": "^5.2.8",

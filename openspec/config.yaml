@@ -1,0 +1,31 @@
+schema: spec-driven
+
+context: |
+  Project: mailu_sh_fast_recover
+  Stack: SvelteKit 5 (Svelte 5 runes) + TypeScript + Vite + Tailwind CSS 4
+  Deployment: Node adapter, Docker Compose, Traefik, Mailu IMAP/SMTP/Admin integration
+  Package manager: npm, with package-lock.json as the dependency authority
+  Testing: Vitest in Node, plus svelte-check, tsc, and production build validation
+  Style: strict TypeScript, Prettier, single quotes, semicolons, trailing commas, 2 spaces, 100 cols
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Include rationale for integration boundaries and Mailu dependencies
+  tasks:
+    - Group by phase and keep tasks small enough for one session
+  apply:
+    guidelines:
+      - Follow existing SvelteKit and TypeScript patterns
+    tdd: true
+    test_command: "npm run test:ci && npm run typecheck && npm run check && npm run build"
+  verify:
+    test_command: "npm run test:ci && npm run typecheck && npm run check && npm run build"
+    build_command: "npm run build"
+    coverage_threshold: 0
+  archive:
+    - Preserve target identity, domain names, and container references
