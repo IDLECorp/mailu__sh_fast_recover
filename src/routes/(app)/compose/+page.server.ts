@@ -204,7 +204,7 @@ export const actions: Actions = {
     }
     if (!to && !subject && !text) return { ok: false, error: 'Borrador vacío' };
     const raw = buildMime(locals.user.email, {
-      to: to || '(sin destinatario)',
+      to,
       subject: subject || '(sin asunto)',
       text,
       html,

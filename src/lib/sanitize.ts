@@ -144,7 +144,12 @@ export function sanitizeEmailHtml(html: string): string {
     FORBID_ATTR: DISALLOWED_ATTR,
     FORBID_TAGS: ['script', 'object', 'form'],
     ALLOW_DATA_ATTR: false,
-    ALLOWED_URI_REGEXP: /^(?:https?|mailto|cid|data:image\/(png|gif|jpeg|webp|svg))/i,
+    // Keep the strict scheme allowlist, but also accept plain non-URI values
+    // (e.g. `start="3"`, `value="5"`): DOMPurify runs every non-URI-safe
+    // attribute value through this regexp, so a scheme-only pattern silently
+    // strips legitimate numeric/plain attributes.
+    ALLOWED_URI_REGEXP:
+      /^(?:https?|mailto|cid|data:image\/(png|gif|jpeg|webp|svg)|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
   });
   // SEC-001 (05-security.md): NO post-procesar `cleaned` con una regex sobre el
   // string ya serializado. Un `replace(/target=["']?_blank["']?/gi, ...)` aquí

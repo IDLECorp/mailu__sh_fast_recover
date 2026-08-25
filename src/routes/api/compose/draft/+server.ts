@@ -60,7 +60,7 @@ export const POST: RequestHandler = async ({ locals, request, getClientAddress }
   }
 
   const raw = buildMime(locals.user.email, {
-    to: to || '(sin destinatario)',
+    to,
     cc: cc || undefined,
     bcc: bcc || undefined,
     subject: subject || '(sin asunto)',

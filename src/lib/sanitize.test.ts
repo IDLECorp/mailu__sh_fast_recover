@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildReplyHeaders, buildReplySubject, extractEmail, rewriteCidImages } from './sanitize';
+import {
+  buildReplyHeaders,
+  buildReplySubject,
+  extractEmail,
+  rewriteCidImages,
+  sanitizeEmailHtml,
+} from './sanitize';
 
 describe('email helpers', () => {
   it('extracts an address from a display-name value and trims bare addresses', () => {
@@ -21,5 +27,14 @@ describe('email helpers', () => {
 
   it('quotes each reply header line', () => {
     expect(buildReplyHeaders('From: Jane\nSent: Monday')).toBe('> From: Jane\n> Sent: Monday');
+  });
+
+  it('preserves ordered and unordered email lists with ordered-list start values', () => {
+    const sanitized = sanitizeEmailHtml(
+      '<ol start="3"><li>Third</li></ol><ul><li>Bullet</li></ul>',
+    );
+
+    expect(sanitized).toBe('<ol start="3"><li>Third</li></ol><ul><li>Bullet</li></ul>');
+    expect(sanitized.match(/<li>/g)).toHaveLength(2);
   });
 });

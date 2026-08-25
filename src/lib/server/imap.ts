@@ -1,6 +1,9 @@
 import { ImapFlow } from 'imapflow';
 import { simpleParser, type ParsedMail } from 'mailparser';
 import { env } from '$env/dynamic/private';
+import { normalizeAddressValue } from './address-normalization';
+
+export { normalizeAddressValue } from './address-normalization';
 
 export interface ImapCreds {
   user: string;
@@ -62,7 +65,7 @@ export function imapClient(creds: ImapCreds): ImapFlow {
     doSTARTTLS: false,
     auth: { user: creds.user, pass: creds.pass },
     logger: false,
-    emitLogs: false
+    emitLogs: false,
   });
 }
 
@@ -84,7 +87,14 @@ export async function verifyCredentialsFull(creds: ImapCreds): Promise<Credentia
     await client.connect();
     imapOk = true;
   } catch (e) {
-    console.error('imap verifyCredentials failed:', (e as Error)?.message ?? e, 'host=', HOST, 'port=', PORT);
+    console.error(
+      'imap verifyCredentials failed:',
+      (e as Error)?.message ?? e,
+      'host=',
+      HOST,
+      'port=',
+      PORT,
+    );
     return { ok: false, needPwChange: false, reason: 'imap_failed' };
   } finally {
     if (client.usable) await client.logout().catch(() => undefined);
@@ -103,7 +113,7 @@ export async function verifyCredentialsFull(creds: ImapCreds): Promise<Credentia
       auth: { user: creds.user, pass: creds.pass },
       tls: { rejectUnauthorized: false },
       connectionTimeout: 5000,
-      greetingTimeout: 5000
+      greetingTimeout: 5000,
     });
     try {
       await t.verify();
@@ -131,7 +141,7 @@ const SPECIAL_USE_NAMES: Record<string, string> = {
   '\\Drafts': 'Borradores',
   '\\Trash': 'Papelera',
   '\\Junk': 'Spam',
-  '\\Archive': 'Archivo'
+  '\\Archive': 'Archivo',
 };
 
 export function mailboxLabel(specialUse: string | null, path: string): string {
@@ -169,18 +179,11 @@ export async function listMailboxes(creds: ImapCreds): Promise<MailboxInfo[]> {
   }
 }
 
-function formatAddr(a: { address?: string; name?: string } | undefined): string {
-  if (!a) return '';
-  if (a.name) return `${a.name} <${a.address ?? ''}>`;
-  return a.address ?? '';
-}
-
-function formatAddrList(list: { address?: string; name?: string }[] | undefined): string {
-  if (!list || !list.length) return '';
-  return list.map(formatAddr).join(', ');
-}
-
-export async function listFolder(creds: ImapCreds, mailbox: string, page = 1): Promise<{ messages: MessageSummary[]; total: number; page: number; pages: number }> {
+export async function listFolder(
+  creds: ImapCreds,
+  mailbox: string,
+  page = 1,
+): Promise<{ messages: MessageSummary[]; total: number; page: number; pages: number }> {
   const client = imapClient(creds);
   await client.connect();
   try {
@@ -200,26 +203,27 @@ export async function listFolder(creds: ImapCreds, mailbox: string, page = 1): P
           envelope: true,
           size: true,
           internalDate: true,
-          bodyStructure: true
+          bodyStructure: true,
         })) {
           const env = msg.envelope ?? {};
           const flags = Array.from((msg.flags as Iterable<string> | undefined) ?? []);
           const dateRaw = msg.internalDate;
           const date = dateRaw instanceof Date ? dateRaw : new Date(dateRaw ?? Date.now());
           const subject = String(env.subject ?? '(sin asunto)');
-          const hasAttachments = (msg.bodyStructure as { childNodes?: unknown[] } | null)?.childNodes?.some(
-            (c) => (c as { disposition?: string })?.disposition === 'attachment'
-          ) ?? false;
+          const hasAttachments =
+            (msg.bodyStructure as { childNodes?: unknown[] } | null)?.childNodes?.some(
+              (c) => (c as { disposition?: string })?.disposition === 'attachment',
+            ) ?? false;
           messages.push({
             uid: msg.uid as number,
             flags,
             subject,
-            from: formatAddr(env.from?.[0]),
-            to: formatAddrList(env.to),
+            from: normalizeAddressValue(env.from),
+            to: normalizeAddressValue(env.to),
             date,
             size: msg.size ?? 0,
             seen: flags.includes('\\Seen'),
-            hasAttachments
+            hasAttachments,
           });
         }
       }
@@ -233,7 +237,11 @@ export async function listFolder(creds: ImapCreds, mailbox: string, page = 1): P
   }
 }
 
-export async function fetchMessage(creds: ImapCreds, mailbox: string, uid: number): Promise<MessageDetail | null> {
+export async function fetchMessage(
+  creds: ImapCreds,
+  mailbox: string,
+  uid: number,
+): Promise<MessageDetail | null> {
   const client = imapClient(creds);
   await client.connect();
   try {
@@ -242,7 +250,7 @@ export async function fetchMessage(creds: ImapCreds, mailbox: string, uid: numbe
       const msg = await client.fetchOne(
         String(uid),
         { uid: true, envelope: true, source: true, internalDate: true, flags: true },
-        { uid: true }
+        { uid: true },
       );
       if (!msg) return null;
       const env = msg.envelope ?? {};
@@ -271,21 +279,21 @@ export async function fetchMessage(creds: ImapCreds, mailbox: string, uid: numbe
         size: a.size ?? a.content.length,
         contentId: a.cid ?? null,
         inline: (a.contentDisposition ?? '').toLowerCase() === 'inline',
-        content: a.content
+        content: a.content,
       }));
 
       const detail: MessageDetail = {
         uid: msg.uid as number,
         subject: String(env.subject ?? parsed.subject ?? '(sin asunto)'),
-        from: addressValue(parsed.from) || formatAddr(env.from?.[0]) || '',
-        to: addressValue(parsed.to) || formatAddrList(env.to) || '',
-        cc: addressValue(parsed.cc) || formatAddrList(env.cc) || '',
+        from: normalizeAddressValue(parsed.from) || normalizeAddressValue(env.from),
+        to: normalizeAddressValue(parsed.to) || normalizeAddressValue(env.to),
+        cc: normalizeAddressValue(parsed.cc) || normalizeAddressValue(env.cc),
         date,
         text,
         html,
         attachments,
         inReplyTo: env.inReplyTo ?? null,
-        messageId: env.messageId ?? null
+        messageId: env.messageId ?? null,
       };
 
       const flags = Array.from((msg.flags as Iterable<string> | undefined) ?? []);
@@ -325,28 +333,18 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-function addressValue(v: unknown): string {
-  if (!v) return '';
-  if (Array.isArray(v)) {
-    return (v as { text?: string }[]).map((x) => x?.text ?? '').filter(Boolean).join(', ');
-  }
-  return (v as { text?: string })?.text ?? '';
-}
-
 export async function fetchAttachment(
   creds: ImapCreds,
   mailbox: string,
   uid: number,
   filename: string,
-  cid?: string | null
+  cid?: string | null,
 ): Promise<Attachment | null> {
   const detail = await fetchMessage(creds, mailbox, uid);
   if (!detail) return null;
   if (cid) {
     const target = cid.startsWith('<') ? cid : `<${cid}>`;
-    return (
-      detail.attachments.find((a) => a.contentId === target || a.contentId === cid) ?? null
-    );
+    return detail.attachments.find((a) => a.contentId === target || a.contentId === cid) ?? null;
   }
   return detail.attachments.find((a) => a.filename === filename) ?? null;
 }
@@ -383,7 +381,12 @@ export async function deleteMessage(creds: ImapCreds, mailbox: string, uid: numb
   }
 }
 
-export async function moveMessage(creds: ImapCreds, from: string, uid: number, to: string): Promise<void> {
+export async function moveMessage(
+  creds: ImapCreds,
+  from: string,
+  uid: number,
+  to: string,
+): Promise<void> {
   const client = imapClient(creds);
   await client.connect();
   try {
@@ -443,11 +446,19 @@ export async function searchMessages(creds: ImapCreds, q: SearchQuery): Promise<
       if (q.since) criteria.since = q.since;
       if (q.seen === true) criteria.seen = true;
       if (q.seen === false) criteria.unseen = true;
-      const searchArgs = (Object.keys(criteria).length ? criteria : 'ALL') as unknown as Parameters<typeof client.search>[0];
+      const searchArgs = (Object.keys(criteria).length ? criteria : 'ALL') as unknown as Parameters<
+        typeof client.search
+      >[0];
       const uids = await client.search(searchArgs, { uid: true });
       if (!uids || !uids.length) return [];
       const map = new Map<number, SearchHit>();
-      for await (const msg of client.fetch(uids as number[], { uid: true, envelope: true, internalDate: true, flags: true, size: true })) {
+      for await (const msg of client.fetch(uids as number[], {
+        uid: true,
+        envelope: true,
+        internalDate: true,
+        flags: true,
+        size: true,
+      })) {
         const env = msg.envelope ?? {};
         const flags = Array.from((msg.flags as Iterable<string> | undefined) ?? []);
         const dateRaw = msg.internalDate;
@@ -456,14 +467,16 @@ export async function searchMessages(creds: ImapCreds, q: SearchQuery): Promise<
           uid: msg.uid as number,
           mailbox,
           subject: String(env.subject ?? '(sin asunto)'),
-          from: formatAddr(env.from?.[0]),
-          to: formatAddrList(env.to),
+          from: normalizeAddressValue(env.from),
+          to: normalizeAddressValue(env.to),
           date,
           size: msg.size ?? 0,
-          seen: flags.includes('\\Seen')
+          seen: flags.includes('\\Seen'),
         });
       }
-      return Array.from(map.values()).sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 100);
+      return Array.from(map.values())
+        .sort((a, b) => b.date.getTime() - a.date.getTime())
+        .slice(0, 100);
     } finally {
       lock.release();
     }
@@ -491,8 +504,9 @@ export async function purgeTrash(creds: ImapCreds): Promise<number> {
     try {
       const count = (await client.status('Trash', { messages: true })).messages ?? 0;
       if (count > 0) {
-        const uids = ((await client.search({ all: true } as never, { uid: true })) as number[] | false) || [];
-      if (uids.length) await uidlist_expunge(client, uids);
+        const uids =
+          ((await client.search({ all: true } as never, { uid: true })) as number[] | false) || [];
+        if (uids.length) await uidlist_expunge(client, uids);
         await uidlist_expunge(client, uids);
       }
       return count;
@@ -514,4 +528,11 @@ async function uidlist_expunge(client: ImapFlow, uids: number[]): Promise<void> 
   }
 }
 
-export const FOLDER_ICONS = ['inbox', 'send', 'file-edit', 'trash-2', 'archive', 'alert-octagon'] as const;
+export const FOLDER_ICONS = [
+  'inbox',
+  'send',
+  'file-edit',
+  'trash-2',
+  'archive',
+  'alert-octagon',
+] as const;

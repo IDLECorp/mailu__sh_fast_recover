@@ -49,4 +49,17 @@ describe('rich-text compose pipeline', () => {
       'background-color: #ff0080; margin-left: 0px; padding-left: 120px',
     );
   });
+
+  it('preserves supported rich styles and ordered-list formatting', () => {
+    const sanitized = sanitizeComposedEmailHtml(
+      '<ol><li><em><s><u><span style="color: #123456; background-color: #abcdef">Styled</span></u></s></em></li></ol>',
+    );
+
+    expect(sanitized).toContain('<ol>');
+    expect(sanitized).toContain('<li>');
+    expect(sanitized).toContain('<em>');
+    expect(sanitized).toContain('<s>');
+    expect(sanitized).toContain('<u>');
+    expect(sanitized).toContain('style="color: #123456; background-color: #abcdef"');
+  });
 });

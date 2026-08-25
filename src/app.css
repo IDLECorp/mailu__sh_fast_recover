@@ -55,7 +55,8 @@
   border-color: var(--border);
 }
 
-html, body {
+html,
+body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
@@ -73,7 +74,10 @@ html, body {
   color: white;
 }
 
-input, textarea, button, select {
+input,
+textarea,
+button,
+select {
   font: inherit;
 }
 
@@ -82,7 +86,8 @@ a {
   text-decoration: none;
 }
 
-input::placeholder, textarea::placeholder {
+input::placeholder,
+textarea::placeholder {
   color: var(--muted-foreground);
 }
 
@@ -93,4 +98,27 @@ input:-webkit-autofill:active {
   -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
   -webkit-text-fill-color: #000 !important;
   transition: background-color 9999s ease-in-out 0s;
+}
+
+.email-body ol,
+.email-body ul {
+  margin-block: 1rem;
+  padding-inline-start: 2.5rem;
+}
+
+.email-body ol {
+  list-style-type: decimal;
+}
+
+.email-body ul {
+  list-style-type: disc;
+}
+
+.email-body li {
+  display: list-item;
+  margin-block: 0.25rem;
+}
+
+.email-body ul ul {
+  list-style-type: circle;
 }
