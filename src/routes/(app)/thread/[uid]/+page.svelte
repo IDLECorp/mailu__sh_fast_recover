@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { ArrowLeft, Reply, Forward, Trash2, Paperclip, Download, Mail } from 'lucide-svelte';
+  import { ArrowLeft, Reply, Forward, Trash2, Paperclip, Download, Mail, PenLine } from 'lucide-svelte';
   import { Avatar } from '$lib/components/ui/avatar';
   import { Button } from '$lib/components/ui/button';
   import { sanitizeEmailHtml } from '$lib/sanitize';
@@ -57,6 +57,15 @@
     >
       <Forward class="size-4" />
     </Button>
+    {#if data.isDraft}
+      <Button
+        href={`/compose?draft=${data.uid}&mailbox=${encodeURIComponent(data.mailbox)}`}
+        variant="outline"
+        size="sm"
+      >
+        <PenLine class="size-4" /> Editar borrador
+      </Button>
+    {/if}
   </div>
 
   <!-- Message -->
