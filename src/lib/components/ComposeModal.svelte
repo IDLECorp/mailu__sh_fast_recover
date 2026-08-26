@@ -18,6 +18,7 @@
   import ToolbarPopover from '$lib/components/rich-text/ToolbarPopover.svelte';
   import EmojiPicker from '$lib/components/rich-text/EmojiPicker.svelte';
   import { cn } from '$lib/utils';
+  import { toast } from 'svelte-sonner';
   import { hasMeaningfulText } from '$lib/compose-html';
   import {
     buildSignatureHtml,
@@ -200,14 +201,19 @@
 
       const res = await fetch('/api/compose/send', { method: 'POST', body: fd });
       const data = await res.json();
+      // El modal siempre se cierra y avisamos con un toast. Los mensajes son
+      // nuestros (en criollo) y no exponen el error crudo que devuelve el server.
+      reset();
+      onClose();
       if (data.ok) {
-        reset();
-        onClose();
+        toast.success('¡Listo! El correo se envió.');
       } else {
-        error = data.error ?? 'No se pudo enviar el correo.';
+        toast.error('Hubo un error con el sistema. No se pudo enviar el correo.');
       }
     } catch {
-      error = 'No se pudo enviar el correo.';
+      reset();
+      onClose();
+      toast.error('Hubo un error con el sistema. Intentá de nuevo más tarde.');
     } finally {
       sending = false;
     }

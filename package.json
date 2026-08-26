@@ -41,6 +41,7 @@
     "mailparser": "^3.7.4",
     "nodemailer": "^6.10.0",
     "squire-rte": "^2.4.8",
+    "svelte-sonner": "^1.2.1",
     "tailwind-merge": "^3.6.0",
     "tailwind-variants": "^3.2.2"
   }

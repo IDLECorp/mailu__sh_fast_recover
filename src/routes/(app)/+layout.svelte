@@ -21,6 +21,7 @@
   import { page } from '$app/state';
   import { Avatar } from '$lib/components/ui/avatar';
   import ComposeModal from '$lib/components/ComposeModal.svelte';
+  import { Toaster } from 'svelte-sonner';
 
   let { data, children }: { data: LayoutData; children: Snippet } = $props();
   let sidebarOpen = $state(false);
@@ -216,3 +217,5 @@
 </div>
 
 <ComposeModal show={composeOpen} onClose={() => (composeOpen = false)} user={data.user} />
+
+<Toaster richColors position="top-right" />
