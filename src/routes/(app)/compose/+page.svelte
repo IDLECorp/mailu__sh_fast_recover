@@ -1,5 +1,6 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import { toast } from 'svelte-sonner';
   import type { ActionData, PageData } from './$types';
   import { Send, AlertCircle, Loader2, Paperclip, X, Save, ArrowLeft } from 'lucide-svelte';
   import { goto } from '$app/navigation';
@@ -72,6 +73,30 @@
     if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
     return `${(n / (1024 * 1024)).toFixed(1)} MB`;
   }
+
+  /** Guarda borrador vía el endpoint JSON (no un form action). Así NO hay
+   * recarga de página: los inputs no se limpian y la URL no cambia a
+   * `/compose?/draft`. Avisamos con un toast en criollo. */
+  async function handleSaveDraft() {
+    savingDraft = true;
+    try {
+      const res = await fetch('/api/compose/draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to, cc, bcc, subject, text, html }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        toast.success('Borrador guardado.');
+      } else {
+        toast.error('Hubo un error con el sistema. No se pudo guardar el borrador.');
+      }
+    } catch {
+      toast.error('Hubo un error con el sistema. No se pudo guardar el borrador.');
+    } finally {
+      savingDraft = false;
+    }
+  }
 </script>
 
 <svelte:head><title>Redactar · Fast Mail</title></svelte:head>
@@ -82,7 +107,7 @@
       <ArrowLeft class="size-4" /> Descartar
     </Button>
     <div class="flex-1"></div>
-    <Button form="draftForm" type="submit" variant="outline" size="sm" disabled={savingDraft}>
+    <Button type="button" variant="outline" size="sm" disabled={savingDraft} onclick={handleSaveDraft}>
       {#if savingDraft}<Loader2 class="size-4 animate-spin" />{:else}<Save class="size-4" />{/if}
       Guardar borrador
     </Button>
@@ -103,7 +128,12 @@
               return async ({ result, update }) => {
                 loading = false;
                 if (result.type === 'success' && result.data?.ok) {
-                  goto('/inbox?sent=1');
+                  toast.success('¡Listo! El correo se envió.');
+                  await goto('/inbox');
+                  return;
+                }
+                if (result.type === 'failure') {
+                  toast.error('Hubo un error con el sistema. No se pudo enviar el correo.');
                 }
                 await update();
               };
@@ -277,21 +307,12 @@
             <div id="filesBuffer"></div>
 
             <div class="flex justify-end pt-2">
-              <Button type="submit" size="lg" disabled={loading}>
+              <Button type="submit" form="sendForm" size="lg" disabled={loading}>
                 {#if loading}<Loader2 class="size-4 animate-spin" /> Enviando…{:else}<Send
                     class="size-4"
                   /> Enviar mensaje{/if}
               </Button>
             </div>
-          </form>
-
-          <form method="POST" id="draftForm" action="?/draft" class="hidden">
-            <input type="hidden" name="to" value={to} />
-            <input type="hidden" name="cc" value={cc} />
-            <input type="hidden" name="bcc" value={bcc} />
-            <input type="hidden" name="subject" value={subject} />
-            <input type="hidden" name="text" value={text} />
-            <input type="hidden" name="html" value={html} />
           </form>
         </CardContent>
       </Card>
