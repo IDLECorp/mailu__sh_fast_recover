@@ -13,9 +13,14 @@
   } from 'lucide-svelte';
   import { cn } from '$lib/utils';
   import { Avatar } from '$lib/components/ui/avatar';
+  import { toast } from '$lib/stores/toast';
+  import ConfirmModal from '$lib/components/ConfirmModal.svelte';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
   let busyUid = $state<number | null>(null);
+  let confirmOpen = $state(false);
+  let pendingUid = $state<number | null>(null);
+  let confirmedUid = $state<number | null>(null);
 
   function fmtDate(d: Date): string {
     const today = new Date();
@@ -106,9 +111,12 @@
                 action="?/markRead"
                 use:enhance={() => {
                   busyUid = m.uid;
-                  return async ({ update }) => {
+                  return async ({ result, update }) => {
                     await update();
                     busyUid = null;
+                    if (result.type === 'failure') {
+                      toast.error('No se pudo marcar el correo como leído.');
+                    }
                   };
                 }}
               >
@@ -125,13 +133,27 @@
                 </button>
               </form>
               <form
+                id={'delete-form-' + m.uid}
                 method="POST"
                 action="?/delete"
+                onsubmit={(e) => {
+                  if (confirmedUid !== m.uid) {
+                    e.preventDefault();
+                    pendingUid = m.uid;
+                    confirmOpen = true;
+                  }
+                }}
                 use:enhance={() => {
                   busyUid = m.uid;
-                  return async ({ update }) => {
+                  return async ({ result, update }) => {
                     await update();
                     busyUid = null;
+                    confirmedUid = null;
+                    if (result.type === 'success' && result.data?.ok) {
+                      toast.success('Correo movido a la papelera.');
+                    } else if (result.type === 'failure') {
+                      toast.error('No se pudo eliminar el correo. Intentá de nuevo.');
+                    }
                   };
                 }}
               >
@@ -162,6 +184,28 @@
       </div>
     {/if}
   </div>
+
+  <ConfirmModal
+    open={confirmOpen}
+    title="Mover a la papelera"
+    message="¿Seguro que querés mover este correo a la papelera?"
+    confirmText="Sí, mover"
+    cancelText="Cancelar"
+    danger={true}
+    onConfirm={() => {
+      const uid = pendingUid;
+      confirmedUid = uid;
+      confirmOpen = false;
+      const f = document.getElementById('delete-form-' + uid) as HTMLFormElement | null;
+      f?.requestSubmit();
+      pendingUid = null;
+    }}
+    onCancel={() => {
+      confirmOpen = false;
+      pendingUid = null;
+      confirmedUid = null;
+    }}
+  />
 
   {#if data.messages.length > 0}
     <nav class="flex items-center justify-between px-6 py-4 text-sm border-t bg-card">

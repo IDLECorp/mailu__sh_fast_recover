@@ -1,5 +1,5 @@
 import type { Handle } from '@sveltejs/kit';
-import { redirect } from '@sveltejs/kit';
+import { redirect, error } from '@sveltejs/kit';
 import { verifySession, getSessionUser, getSessionNeedPwChange } from '$lib/server/auth';
 
 const PUBLIC_PATHS = ['/login', '/health', '/favicon.svg', '/change-password', '/logout'];
@@ -11,7 +11,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 
   const path = event.url.pathname;
   const isPublic = PUBLIC_PATHS.some((p) => path === p || path.startsWith(`${p}/`));
+  const isApi = path.startsWith('/api/');
   if (!event.locals.user && !isPublic) {
+    // Rutas de API: 401 JSON en vez de redirigir al login (un cliente que
+    // sigue el 303 terminaria sirviendo el HTML del login con 200).
+    if (isApi) throw error(401, 'No autorizado');
     throw redirect(303, `/login?next=${encodeURIComponent(path)}`);
   }
   if (event.locals.user && sid) {

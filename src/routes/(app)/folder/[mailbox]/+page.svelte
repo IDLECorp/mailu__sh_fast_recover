@@ -4,9 +4,18 @@
   import { Trash2, MailOpen, ChevronLeft, ChevronRight, Mail as MailIcon, Paperclip, Loader2 } from 'lucide-svelte';
   import { cn } from '$lib/utils';
   import { Avatar } from '$lib/components/ui/avatar';
+  import { toast } from '$lib/stores/toast';
+  import ConfirmModal from '$lib/components/ConfirmModal.svelte';
+  import { Trash2 as TrashIcon } from 'lucide-svelte';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
   let busyUid = $state<number | null>(null);
+  let confirmOpen = $state(false);
+  let pendingUid = $state<number | null>(null);
+  let confirmedUid = $state<number | null>(null);
+  let purgeOpen = $state(false);
+  let purgeConfirmed = $state(false);
+  const isTrash = $derived(data.mailbox === 'Trash');
 
   function fmtDate(d: Date): string {
     const today = new Date();
@@ -34,6 +43,46 @@
       <MailIcon class="size-4 text-primary" />
       <h1 class="text-sm font-semibold">{data.mailboxLabel}</h1>
       <span class="text-xs text-muted-foreground">· {data.total} mensajes</span>
+      <div class="flex-1"></div>
+      {#if isTrash}
+        <form
+          id="purge-form"
+          method="POST"
+          action="?/purge"
+          onsubmit={(e) => {
+            if (!purgeConfirmed) {
+              e.preventDefault();
+              purgeOpen = true;
+            }
+          }}
+          use:enhance={() => {
+            return async ({ result, update }) => {
+              await update();
+              purgeConfirmed = false;
+              if (result.type === 'success' && result.data?.ok) {
+                const count = (result.data as { count?: number }).count ?? 0;
+                toast.success(
+                  count > 0
+                    ? `Papelera vaciada. Se borraron ${count} correo(s).`
+                    : 'La papelera ya estaba vacía.',
+                );
+              } else if (result.type === 'failure') {
+                const msg =
+                  (result.data as { error?: string })?.error ??
+                  'No se pudo vaciar la papelera.';
+                toast.error(msg);
+              }
+            };
+          }}
+        >
+          <button
+            type="submit"
+            class="inline-flex items-center gap-1.5 rounded-3xl border px-4 h-9 text-sm text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+          >
+            <TrashIcon class="size-4" /> Vaciar papelera
+          </button>
+        </form>
+      {/if}
     </div>
   </div>
 
@@ -67,13 +116,37 @@
             </div>
 
             <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition z-30">
-              <form method="POST" action="?/markRead" use:enhance={() => { busyUid = m.uid; return async ({ update }) => { await update(); busyUid = null; }; }}>
+              <form method="POST" action="?/markRead" use:enhance={() => { busyUid = m.uid; return async ({ result, update }) => { await update(); busyUid = null; if (result.type === 'failure') toast.error('No se pudo marcar el correo como leído.'); }; }}>
                 <input type="hidden" name="uid" value={m.uid} />
                 <button type="submit" disabled={busyUid === m.uid} aria-label="Marcar leído" class="rounded-md p-1.5 hover:bg-accent hover:text-foreground text-muted-foreground transition disabled:opacity-50">
                   {#if busyUid === m.uid}<Loader2 class="size-4 animate-spin" />{:else}<MailOpen class="size-4" />{/if}
                 </button>
               </form>
-              <form method="POST" action="?/delete" use:enhance={() => { busyUid = m.uid; return async ({ update }) => { await update(); busyUid = null; }; }}>
+              <form
+                id={'delete-form-' + m.uid}
+                method="POST"
+                action="?/delete"
+                onsubmit={(e) => {
+                  if (confirmedUid !== m.uid) {
+                    e.preventDefault();
+                    pendingUid = m.uid;
+                    confirmOpen = true;
+                  }
+                }}
+                use:enhance={() => {
+                  busyUid = m.uid;
+                  return async ({ result, update }) => {
+                    await update();
+                    busyUid = null;
+                    confirmedUid = null;
+                    if (result.type === 'success' && result.data?.ok) {
+                      toast.success(isTrash ? 'Correo borrado de la papelera.' : 'Correo movido a la papelera.');
+                    } else if (result.type === 'failure') {
+                      toast.error('No se pudo eliminar el correo. Intentá de nuevo.');
+                    }
+                  };
+                }}
+              >
                 <input type="hidden" name="uid" value={m.uid} />
                 <button type="submit" disabled={busyUid === m.uid} aria-label="Eliminar" class="rounded-md p-1.5 hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition disabled:opacity-50">
                   {#if busyUid === m.uid}<Loader2 class="size-4 animate-spin" />{:else}<Trash2 class="size-4" />{/if}
@@ -109,3 +182,46 @@
     </nav>
   {/if}
 </div>
+
+<ConfirmModal
+  open={confirmOpen}
+  title={isTrash ? 'Borrar correo' : 'Mover a la papelera'}
+  message={isTrash
+    ? '¿Seguro que querés borrar este correo para siempre? No se puede deshacer.'
+    : '¿Seguro que querés mover este correo a la papelera?'}
+  confirmText={isTrash ? 'Sí, borrar' : 'Sí, mover'}
+  cancelText="Cancelar"
+  danger={true}
+  onConfirm={() => {
+    const uid = pendingUid;
+    confirmedUid = uid;
+    confirmOpen = false;
+    const f = document.getElementById('delete-form-' + uid) as HTMLFormElement | null;
+    f?.requestSubmit();
+    pendingUid = null;
+  }}
+  onCancel={() => {
+    confirmOpen = false;
+    pendingUid = null;
+    confirmedUid = null;
+  }}
+/>
+
+<ConfirmModal
+  open={purgeOpen}
+  title="Vaciar la papelera"
+  message="¿Seguro que querés borrar TODO de la papelera? No se puede deshacer."
+  confirmText="Sí, vaciar"
+  cancelText="Cancelar"
+  danger={true}
+  onConfirm={() => {
+    purgeConfirmed = true;
+    purgeOpen = false;
+    const f = document.getElementById('purge-form') as HTMLFormElement | null;
+    f?.requestSubmit();
+  }}
+  onCancel={() => {
+    purgeOpen = false;
+    purgeConfirmed = false;
+  }}
+/>

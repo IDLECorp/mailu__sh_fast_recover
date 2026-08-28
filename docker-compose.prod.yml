@@ -12,7 +12,7 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - HOSTNAME=0.0.0.0
-      - BODY_SIZE_LIMIT=5242880
+      - BODY_SIZE_LIMIT=12M
     networks:
       - coolify
       - mailu_default

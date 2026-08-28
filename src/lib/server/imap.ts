@@ -370,6 +370,14 @@ export async function deleteMessage(creds: ImapCreds, mailbox: string, uid: numb
   try {
     const lock = await client.getMailboxLock(mailbox);
     try {
+      // Moving a message to the SAME folder it already lives in (e.g. "Trash" -> "Trash")
+      // is interpreted by Dovecot as a destructive move that leaves 0 copies. When the
+      // message is already in Trash, the user's intent ("delete") is to purge it
+      // permanently, so we delete it instead of moving it onto itself.
+      if (mailbox === 'Trash') {
+        await client.messageDelete(String(uid), { uid: true });
+        return;
+      }
       await client.messageMove(String(uid), 'Trash', { uid: true }).catch(async () => {
         await client.messageFlagsAdd(String(uid), ['\\Deleted'], { uid: true });
       });
@@ -381,18 +389,31 @@ export async function deleteMessage(creds: ImapCreds, mailbox: string, uid: numb
   }
 }
 
+export interface MoveResult {
+  ok: boolean;
+  moved: boolean;
+  note?: 'already_in_target';
+}
+
 export async function moveMessage(
   creds: ImapCreds,
   from: string,
   uid: number,
   to: string,
-): Promise<void> {
+): Promise<MoveResult> {
+  // No-op guard: moving a message to the folder it already lives in (e.g. "Archive" -> "Archive")
+  // is interpreted by Dovecot as a destructive move that leaves 0 copies. Return early so the
+  // message is preserved and callers can detect the no-op via `moved: false`.
+  if (to === from) {
+    return { ok: true, moved: false, note: 'already_in_target' };
+  }
   const client = imapClient(creds);
   await client.connect();
   try {
     const lock = await client.getMailboxLock(from);
     try {
       await client.messageMove(String(uid), to, { uid: true });
+      return { ok: true, moved: true };
     } finally {
       lock.release();
     }

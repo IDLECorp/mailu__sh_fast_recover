@@ -21,7 +21,6 @@
   import { page } from '$app/state';
   import { Avatar } from '$lib/components/ui/avatar';
   import ComposeModal from '$lib/components/ComposeModal.svelte';
-  import { Toaster } from 'svelte-sonner';
 
   let { data, children }: { data: LayoutData; children: Snippet } = $props();
   let sidebarOpen = $state(false);
@@ -136,7 +135,7 @@
           )}
         >
           <UserIcon class="size-4 shrink-0" />
-          Admin
+          Administración
         </a>
       </div>
     </nav>
@@ -192,7 +191,7 @@
                 fallback={data.user?.email ?? ''}
               />
               <p class="text-sm font-medium truncate">{data.user?.email}</p>
-              <p class="text-sm text-muted-foreground">¡Hola! Area de {userDisplay}</p>
+              <p class="text-sm text-muted-foreground">¡Hola! Estás en el área de {userDisplay}</p>
             </div>
             <div class="p-1 py-8">
               <form method="POST" action="/logout">
@@ -217,5 +216,3 @@
 </div>
 
 <ComposeModal show={composeOpen} onClose={() => (composeOpen = false)} user={data.user} />
-
-<Toaster richColors position="top-right" />

@@ -6,6 +6,7 @@
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
+  import { toast } from '$lib/stores/toast';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
   let loading = $state(false);
@@ -33,7 +34,19 @@
         <CardContent class="p-5">
           <form
             method="POST"
-            use:enhance={() => { loading = true; return async ({ update }) => { loading = false; await update(); }; }}
+            use:enhance={() => {
+              loading = true;
+              return async ({ result, update }) => {
+                loading = false;
+                await update();
+                if (result.type === 'failure') {
+                  const msg =
+                    (result.data as { error?: string })?.error ??
+                    'No se pudo cambiar la contraseña. Intentá de nuevo.';
+                  toast.error(msg);
+                }
+              };
+            }}
             class="space-y-4"
           >
             <div class="space-y-1.5">

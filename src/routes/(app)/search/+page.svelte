@@ -37,6 +37,18 @@
     return (m?.[1] || from).trim();
   }
 
+  const SPECIAL_LABELS: Record<string, string> = {
+    INBOX: 'Bandeja',
+    Sent: 'Enviados',
+    Drafts: 'Borradores',
+    Trash: 'Papelera',
+    Junk: 'Spam',
+    Archive: 'Archivo',
+  };
+  function localMailbox(path: string): string {
+    return SPECIAL_LABELS[path] ?? path;
+  }
+
   function fmtDate(d: Date): string {
     const today = new Date();
     const sameDay = d.toDateString() === today.toDateString();
@@ -130,7 +142,7 @@
               >
                 {m.subject}
               </p>
-              <p class="text-xs text-muted-foreground mt-0.5">{m.mailbox}</p>
+              <p class="text-xs text-muted-foreground mt-0.5">{localMailbox(m.mailbox)}</p>
             </div>
             <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition z-30">
               <span class="text-xs text-muted-foreground shrink-0">{fmtDate(m.date)}</span>

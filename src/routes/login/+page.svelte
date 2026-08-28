@@ -12,6 +12,7 @@
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
+  import { toast } from '$lib/stores/toast';
   import './login.css';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -75,9 +76,15 @@
           method="POST"
           use:enhance={() => {
             loading = true;
-            return async ({ update }) => {
+            return async ({ result, update }) => {
               loading = false;
               await update();
+              if (result.type === 'failure') {
+                const msg =
+                  (result.data as { error?: string })?.error ??
+                  'No pudimos entrar. Revisá tus datos.';
+                toast.error(msg);
+              }
             };
           }}
           class="space-y-8"
@@ -113,7 +120,7 @@
                 name="password"
                 type={showPassword ? 'text' : 'password'}
                 autocomplete="current-password"
-                placeholder="Introduce tu contrasena"
+                placeholder="Introduce tu contraseña"
                 required
                 bind:value={password}
                 class="pl-9 pr-9"

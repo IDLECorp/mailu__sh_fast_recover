@@ -18,7 +18,8 @@
   import ToolbarPopover from '$lib/components/rich-text/ToolbarPopover.svelte';
   import EmojiPicker from '$lib/components/rich-text/EmojiPicker.svelte';
   import { cn } from '$lib/utils';
-  import { toast } from 'svelte-sonner';
+  import { toast } from '$lib/stores/toast';
+  import ConfirmModal from '$lib/components/ConfirmModal.svelte';
   import { hasMeaningfulText } from '$lib/compose-html';
   import {
     buildSignatureHtml,
@@ -77,6 +78,20 @@
   let fileInputEl = $state<HTMLInputElement | undefined>();
   let recentEmojis = $state<string[]>([]);
   let hasContent = $derived(!!(to || subject || hasMeaningfulText(text)));
+  /** Confirmacion de envio solo para correos pesados o con muchos destinatarios,
+   * para no molestar en el flujo normal (criterio del cliente). */
+  let sendConfirmOpen = $state(false);
+  let sendArmed = $state(false);
+
+  function recipientCount(): number {
+    const parts = [to, cc, bcc].filter(Boolean).join(',');
+    return parts ? parts.split(',').filter((p) => p.trim().length > 0).length : 0;
+  }
+
+  function needsSendConfirm(): boolean {
+    const totalSize = files.reduce((s, f) => s + f.size, 0);
+    return totalSize > 5 * 1024 * 1024 || recipientCount() > 5;
+  }
 
   function reset() {
     to = '';
@@ -187,6 +202,14 @@
       error = 'Completá destinatario, asunto y mensaje.';
       return;
     }
+    // Confirmacion de envio solo cuando el correo es pesado o tiene muchos
+    // destinatarios, para no interrumpir el flujo normal.
+    if (!sendArmed && needsSendConfirm()) {
+      sendConfirmOpen = true;
+      return;
+    }
+    sendArmed = false;
+    sendConfirmOpen = false;
     sending = true;
     try {
       const fd = new FormData();
@@ -217,6 +240,11 @@
     } finally {
       sending = false;
     }
+  }
+
+  function confirmSend() {
+    sendArmed = true;
+    handleSend();
   }
 
   // ─── Diseño §7.4 — inserción de firma al abrir un compositor nuevo ────────
@@ -567,6 +595,17 @@
       </div>
     </div>
   </div>
+  <ConfirmModal
+    open={sendConfirmOpen}
+    title="¿Enviamos este correo?"
+    message="Revisá que el destinatario, el asunto y los adjuntos estén bien antes de enviarlo."
+    confirmText="Sí, enviar"
+    cancelText="Cancelar"
+    onConfirm={confirmSend}
+    onCancel={() => {
+      sendConfirmOpen = false;
+    }}
+  />
 {/if}
 
 <style>

@@ -8,6 +8,7 @@
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
   import { Textarea } from '$lib/components/ui/textarea';
+  import { toast } from '$lib/stores/toast';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
   let loading = $state(false);
@@ -68,7 +69,13 @@
               return async ({ result, update }) => {
                 loading = false;
                 if (result.type === 'success' && result.data?.ok) {
+                  toast.success('¡Listo! El correo se envió.');
                   goto('/inbox?sent=1');
+                } else if (result.type === 'failure') {
+                  const msg =
+                    (result.data as { error?: string })?.error ??
+                    'No se pudo enviar el correo. Intentá de nuevo.';
+                  toast.error(msg);
                 }
                 await update();
               };
@@ -205,7 +212,24 @@
             </div>
           </form>
 
-          <form method="POST" id="draftForm" action="?/draft" class="hidden">
+          <form
+            method="POST"
+            id="draftForm"
+            action="?/draft"
+            class="hidden"
+            use:enhance={() => {
+              savingDraft = true;
+              return async ({ result, update }) => {
+                savingDraft = false;
+                await update();
+                if (result.type === 'success' && result.data?.ok) {
+                  toast.success('Borrador guardado.');
+                } else if (result.type === 'failure') {
+                  toast.error('No se pudo guardar el borrador. Intentá de nuevo.');
+                }
+              };
+            }}
+          >
             <input type="hidden" name="to" value={to} />
             <input type="hidden" name="subject" value={subject} />
             <input type="hidden" name="text" value={text} />

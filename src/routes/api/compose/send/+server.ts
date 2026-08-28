@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getSessionPassword } from '$lib/server/auth';
-import { sendMail } from '$lib/server/smtp';
+import { sendMail, sanitizeAttachmentName, SmtpRejectedError } from '$lib/server/smtp';
 import { rateLimitByKey } from '$lib/server/rate-limit';
 import type { AttachmentBytes } from '$lib/email';
 import { safeSanitizeComposedEmailHtml } from '$lib/sanitize';
@@ -12,8 +12,19 @@ import {
 } from '$lib/server/compose-html-guard';
 
 const MAX_SIZE = 10 * 1024 * 1024;
+// SEC: limite de adjunto de la app (10 MB). El cuerpo solo llega a este
+// chequeo si el server lo deja pasar. Con @sveltejs/adapter-node, el limite
+// REAL de tamaño de cuerpo lo impone la env BODY_SIZE_LIMIT: el server de
+// Node la lee en build/index.js -> get_raw_body y aborta el stream si se
+// excede. Si BODY_SIZE_LIMIT < MAX_SIZE, el server corta la conexion mientras
+// el cliente todavia esta subiendo y el cliente recibe "Connection reset by
+// peer" (RST) en vez de un 413 limpio. Por eso BODY_SIZE_LIMIT debe ser
+// >= MAX_SIZE + overhead del multipart; en INFRA se configura como 12M
+// (docker-compose.prod.yml). En produccion con adapter-node el valor efectivo
+// es BODY_SIZE_LIMIT (no existe bodySizeLimit por ruta en SvelteKit 2).
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PRIORITIES = new Set(['low', 'normal', 'high']);
+const CRLF_RE = /[\r\n]/;
 
 function parseRecipients(value: string): string[] {
   return value
@@ -67,6 +78,17 @@ export const POST: RequestHandler = async ({ locals, request, getClientAddress }
   const priority = PRIORITIES.has(priorityRaw)
     ? (priorityRaw as 'low' | 'normal' | 'high')
     : 'normal';
+  // Bug 6: cualquier valor distinto de low/normal/high ya cae a 'normal'
+  // (sin crashear). Validado arriba.
+
+  // Bug 1: inyección de cabeceras / CRLF. Nodemailer lanza "Invalid header
+  // value" si subject o destinatarios traen \r\n; lo bloqueamos antes de enviar.
+  const crlfError =
+    (subject && CRLF_RE.test(subject) ? 'El asunto contiene caracteres no permitidos' : null) ??
+    (to && CRLF_RE.test(to) ? 'El destinatario contiene caracteres no permitidos' : null) ??
+    (cc && CRLF_RE.test(cc) ? 'El campo Cc contiene caracteres no permitidos' : null) ??
+    (bcc && CRLF_RE.test(bcc) ? 'El campo Cco contiene caracteres no permitidos' : null);
+  if (crlfError) return json({ ok: false, error: crlfError }, { status: 400 });
 
   if (!to || !subject || !text) return json({ ok: false, error: 'Faltan campos' }, { status: 400 });
   if (to.length > 1024 || subject.length > 200)
@@ -80,15 +102,18 @@ export const POST: RequestHandler = async ({ locals, request, getClientAddress }
   const attachments: AttachmentBytes[] = [];
   const files = form.getAll('attachment') as File[];
   for (const file of files) {
-    if (!file || file.size === 0) continue;
+    if (!file) continue; // archivos nulos no aportan nada
+    const cleanName = sanitizeAttachmentName(file.name);
     if (file.size > MAX_SIZE)
       return json(
-        { ok: false, error: `Adjunto ${file.name} demasiado grande (máx 10 MB)` },
+        { ok: false, error: `Adjunto ${cleanName} demasiado grande (máx 10 MB)` },
         { status: 413 },
       );
+    // Bug 5: un adjunto de 0 bytes se envía igual (no se pierde en silencio).
+    // Bug 4: saneamos el nombre (basename, sin /, \ ni ..) antes de usarlo.
     const content = Buffer.from(await file.arrayBuffer());
     attachments.push({
-      filename: file.name,
+      filename: cleanName,
       contentType: file.type || 'application/octet-stream',
       content,
     });
@@ -107,6 +132,11 @@ export const POST: RequestHandler = async ({ locals, request, getClientAddress }
     });
     return json({ ok: true });
   } catch (e) {
+    // Bug 3: si el SMTP rechazó el adjunto por extensión prohibida, devolvemos
+    // 400 limpio en español. En cualquier error NUNCA devolvemos ok:true.
+    if (e instanceof SmtpRejectedError) {
+      return json({ ok: false, error: e.message }, { status: e.status });
+    }
     return json(
       { ok: false, error: `No se pudo enviar: ${(e as Error).message}` },
       { status: 500 },

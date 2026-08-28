@@ -11,6 +11,11 @@ import {
   COMPOSED_HTML_GUARD_MESSAGES,
 } from '$lib/server/compose-html-guard';
 
+// SEC: con @sveltejs/adapter-node el limite REAL de cuerpo lo impone la env
+// El limite de cuerpo efectivo en produccion es BODY_SIZE_LIMIT (12M en INFRA),
+// no un export por ruta (SvelteKit 2 no lo soporta). Se mantiene alineado con
+// /api/compose/send para no romper el autosave de borradores con adjuntos grandes.
+
 export const POST: RequestHandler = async ({ locals, request, getClientAddress }) => {
   const sid = locals.sessionId;
   const password = sid ? await getSessionPassword(sid) : null;
