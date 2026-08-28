@@ -20,7 +20,6 @@
   let busyUid = $state<number | null>(null);
   let confirmOpen = $state(false);
   let pendingUid = $state<number | null>(null);
-  let confirmedUid = $state<number | null>(null);
 
   function fmtDate(d: Date): string {
     const today = new Date();
@@ -136,19 +135,11 @@
                 id={'delete-form-' + m.uid}
                 method="POST"
                 action="?/delete"
-                onsubmit={(e) => {
-                  if (confirmedUid !== m.uid) {
-                    e.preventDefault();
-                    pendingUid = m.uid;
-                    confirmOpen = true;
-                  }
-                }}
                 use:enhance={() => {
                   busyUid = m.uid;
                   return async ({ result, update }) => {
                     await update();
                     busyUid = null;
-                    confirmedUid = null;
                     if (result.type === 'success' && result.data?.ok) {
                       toast.success('Correo movido a la papelera.');
                     } else if (result.type === 'failure') {
@@ -159,9 +150,15 @@
               >
                 <input type="hidden" name="uid" value={m.uid} />
                 <button
-                  type="submit"
+                  type="button"
                   disabled={busyUid === m.uid}
                   aria-label="Eliminar"
+                  onclick={() => {
+                    if (busyUid !== m.uid) {
+                      pendingUid = m.uid;
+                      confirmOpen = true;
+                    }
+                  }}
                   class="rounded-md p-1.5 hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition disabled:opacity-50"
                 >
                   {#if busyUid === m.uid}<Loader2 class="size-4 animate-spin" />{:else}<Trash2
@@ -194,16 +191,15 @@
     danger={true}
     onConfirm={() => {
       const uid = pendingUid;
-      confirmedUid = uid;
+      if (uid === null) return;
       confirmOpen = false;
+      pendingUid = null;
       const f = document.getElementById('delete-form-' + uid) as HTMLFormElement | null;
       f?.requestSubmit();
-      pendingUid = null;
     }}
     onCancel={() => {
       confirmOpen = false;
       pendingUid = null;
-      confirmedUid = null;
     }}
   />
 

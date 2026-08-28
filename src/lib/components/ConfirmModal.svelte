@@ -47,6 +47,7 @@
     role="presentation"
   >
     <button
+      type="button"
       class="absolute inset-0 cursor-default bg-black/50"
       aria-label={cancelText}
       onclick={cancel}

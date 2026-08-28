@@ -137,13 +137,14 @@ export async function resolvePasswordChangeRequirement(email: string, fallback: 
 }
 
 export async function createUser(input: { localpart: string; domain: string; password: string; quota?: number }): Promise<MailuUser> {
+  const email = `${input.localpart}@${input.domain}`;
+  const quotaBytes = input.quota === undefined ? null : Math.round(input.quota * 1024 * 1024);
   return (await adminRequest(api('/user'), {
     method: 'POST',
     body: JSON.stringify({
-      localpart: input.localpart,
-      domain: input.domain,
-      password: input.password,
-      quota: input.quota ?? null
+      email,
+      raw_password: input.password,
+      quota_bytes: quotaBytes
     })
   })) as MailuUser;
 }

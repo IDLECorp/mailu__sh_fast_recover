@@ -12,9 +12,8 @@
   let busyUid = $state<number | null>(null);
   let confirmOpen = $state(false);
   let pendingUid = $state<number | null>(null);
-  let confirmedUid = $state<number | null>(null);
   let purgeOpen = $state(false);
-  let purgeConfirmed = $state(false);
+  let purging = $state(false);
   const isTrash = $derived(data.mailbox === 'Trash');
 
   function fmtDate(d: Date): string {
@@ -49,16 +48,10 @@
           id="purge-form"
           method="POST"
           action="?/purge"
-          onsubmit={(e) => {
-            if (!purgeConfirmed) {
-              e.preventDefault();
-              purgeOpen = true;
-            }
-          }}
           use:enhance={() => {
             return async ({ result, update }) => {
               await update();
-              purgeConfirmed = false;
+              purging = false;
               if (result.type === 'success' && result.data?.ok) {
                 const count = (result.data as { count?: number }).count ?? 0;
                 toast.success(
@@ -76,7 +69,11 @@
           }}
         >
           <button
-            type="submit"
+            type="button"
+            disabled={purging}
+            onclick={() => {
+              if (!purging) purgeOpen = true;
+            }}
             class="inline-flex items-center gap-1.5 rounded-3xl border px-4 h-9 text-sm text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
           >
             <TrashIcon class="size-4" /> Vaciar papelera
@@ -126,19 +123,11 @@
                 id={'delete-form-' + m.uid}
                 method="POST"
                 action="?/delete"
-                onsubmit={(e) => {
-                  if (confirmedUid !== m.uid) {
-                    e.preventDefault();
-                    pendingUid = m.uid;
-                    confirmOpen = true;
-                  }
-                }}
                 use:enhance={() => {
                   busyUid = m.uid;
                   return async ({ result, update }) => {
                     await update();
                     busyUid = null;
-                    confirmedUid = null;
                     if (result.type === 'success' && result.data?.ok) {
                       toast.success(isTrash ? 'Correo borrado de la papelera.' : 'Correo movido a la papelera.');
                     } else if (result.type === 'failure') {
@@ -148,7 +137,18 @@
                 }}
               >
                 <input type="hidden" name="uid" value={m.uid} />
-                <button type="submit" disabled={busyUid === m.uid} aria-label="Eliminar" class="rounded-md p-1.5 hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition disabled:opacity-50">
+                <button
+                  type="button"
+                  disabled={busyUid === m.uid}
+                  aria-label="Eliminar"
+                  onclick={() => {
+                    if (busyUid !== m.uid) {
+                      pendingUid = m.uid;
+                      confirmOpen = true;
+                    }
+                  }}
+                  class="rounded-md p-1.5 hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition disabled:opacity-50"
+                >
                   {#if busyUid === m.uid}<Loader2 class="size-4 animate-spin" />{:else}<Trash2 class="size-4" />{/if}
                 </button>
               </form>
@@ -194,16 +194,15 @@
   danger={true}
   onConfirm={() => {
     const uid = pendingUid;
-    confirmedUid = uid;
+    if (uid === null) return;
     confirmOpen = false;
+    pendingUid = null;
     const f = document.getElementById('delete-form-' + uid) as HTMLFormElement | null;
     f?.requestSubmit();
-    pendingUid = null;
   }}
   onCancel={() => {
     confirmOpen = false;
     pendingUid = null;
-    confirmedUid = null;
   }}
 />
 
@@ -215,13 +214,14 @@
   cancelText="Cancelar"
   danger={true}
   onConfirm={() => {
-    purgeConfirmed = true;
-    purgeOpen = false;
+    if (purging) return;
     const f = document.getElementById('purge-form') as HTMLFormElement | null;
-    f?.requestSubmit();
+    if (!f) return;
+    purging = true;
+    purgeOpen = false;
+    f.requestSubmit();
   }}
   onCancel={() => {
     purgeOpen = false;
-    purgeConfirmed = false;
   }}
 />

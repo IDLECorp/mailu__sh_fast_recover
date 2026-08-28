@@ -1,6 +1,60 @@
 import { simpleParser } from 'mailparser';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { normalizeAddressValue } from './address-normalization';
+import { PurgeTrashError, purgeTrash } from './imap';
+
+const imapClientMock = vi.hoisted(() => ({ current: null as Record<string, unknown> | null }));
+
+vi.mock('imapflow', () => ({
+  ImapFlow: class {
+    constructor() {
+      Object.assign(this, imapClientMock.current ?? {});
+    }
+  },
+}));
+
+function createImapMock({
+  initialCount = 2,
+  remainingUids = [],
+  uids = [11, 12],
+  failedUid,
+  hasUidPlus = true,
+}: {
+  initialCount?: number;
+  remainingUids?: number[];
+  uids?: number[] | false;
+  failedUid?: number;
+  hasUidPlus?: boolean;
+} = {}) {
+  const flagsAdd = vi.fn(async (uid: string) => {
+    if (Number(uid) === failedUid) throw new Error('store failed');
+    return true;
+  });
+  const search = vi
+    .fn()
+    .mockResolvedValueOnce(uids)
+    .mockResolvedValueOnce(remainingUids);
+  const client = {
+    capabilities: new Map(hasUidPlus ? [['UIDPLUS', true]] : []),
+    connect: vi.fn(),
+    logout: vi.fn().mockResolvedValue(undefined),
+    getMailboxLock: vi.fn().mockResolvedValue({ release: vi.fn() }),
+    status: vi
+      .fn()
+      .mockResolvedValueOnce({ messages: initialCount })
+      .mockResolvedValue({ messages: remainingUids.length }),
+    search,
+    messageFlagsAdd: flagsAdd,
+    exec: vi.fn().mockResolvedValue({}),
+    messageDelete: vi.fn(),
+  };
+  imapClientMock.current = client;
+  return client;
+}
+
+beforeEach(() => {
+  imapClientMock.current = null;
+});
 
 describe('legacy address normalization', () => {
   function expectCleanRecipients(actual: string, expected: string): void {
@@ -31,6 +85,12 @@ describe('legacy address normalization', () => {
       'Alice <alice@example.com>, Bob <bob@example.com>',
     );
     expect(normalizeAddressValue(parsed.cc)).toBe('Carol <carol@example.com>, dave@example.com');
+  });
+
+  it('normalizes Bcc from parsed draft headers', async () => {
+    const parsed = await simpleParser('Bcc: hidden@example.com\r\n\r\nDraft');
+
+    expect(normalizeAddressValue(parsed.bcc)).toBe('hidden@example.com');
   });
 
   it('decodes B-encoded and folded display names', () => {
@@ -123,5 +183,45 @@ describe('legacy address normalization', () => {
     expect(normalizeAddressValue([{ name: '', address: 'billing=20code@example.com' }])).toBe(
       'billing=20code@example.com',
     );
+  });
+});
+
+describe('purgeTrash', () => {
+  it('marks each Trash UID once, expunges once, and returns the original count', async () => {
+    const client = createImapMock();
+
+    await expect(purgeTrash({ user: 'user@example.com', pass: 'secret' })).resolves.toBe(2);
+
+    expect(client.messageFlagsAdd).toHaveBeenCalledTimes(2);
+    expect(client.messageFlagsAdd).toHaveBeenNthCalledWith(1, '11', ['\\Deleted'], { uid: true });
+    expect(client.messageFlagsAdd).toHaveBeenNthCalledWith(2, '12', ['\\Deleted'], { uid: true });
+    expect(client.exec).toHaveBeenCalledTimes(1);
+    expect(client.exec).toHaveBeenCalledWith('UID EXPUNGE', [
+      { type: 'SEQUENCE', value: '11,12' },
+    ]);
+    expect(client.messageDelete).not.toHaveBeenCalled();
+  });
+
+  it('rejects with a safe error when a UID fails or messages remain', async () => {
+    const client = createImapMock({ failedUid: 12, remainingUids: [12] });
+
+    const result = purgeTrash({ user: 'user@example.com', pass: 'secret' });
+
+    await expect(result).rejects.toBeInstanceOf(PurgeTrashError);
+    await expect(result).rejects.toMatchObject({ failedUids: [12], remainingUids: [12] });
+    await expect(result).rejects.not.toHaveProperty('message', 'store failed');
+    expect(client.messageFlagsAdd).toHaveBeenCalledTimes(2);
+    expect(client.exec).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not perform an unsafe expunge without UIDPLUS', async () => {
+    const client = createImapMock({ hasUidPlus: false });
+
+    await expect(purgeTrash({ user: 'user@example.com', pass: 'secret' })).rejects.toBeInstanceOf(
+      PurgeTrashError,
+    );
+
+    expect(client.messageFlagsAdd).not.toHaveBeenCalled();
+    expect(client.exec).not.toHaveBeenCalled();
   });
 });

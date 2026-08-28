@@ -3,6 +3,7 @@ import { env } from '$env/dynamic/private';
 import {
   getUserPasswordChangeRequired,
   resolvePasswordChangeRequirement,
+  createUser,
   updatePassword,
   validateMailuBasicAuthPassword,
 } from './mailu-admin';
@@ -125,5 +126,47 @@ describe('Mailu Admin user updates', () => {
 
     await expect(validateMailuBasicAuthPassword('user@example.com', 'submitted-password')).resolves.toBe(null);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('Mailu Admin user creation', () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    for (const key of Object.keys(env)) delete env[key];
+    env.MAILU_ADMIN_URL = 'https://mailu-admin.example.test/';
+    env.MAILU_API_KEY = 'test-api-key';
+  });
+
+  it('sends Mailu v2 user fields and converts the UI quota from MB to bytes', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ email: 'user@example.com' }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await createUser({ localpart: 'user', domain: 'example.com', password: 'plain-pass', quota: 25 });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://mailu-admin.example.test/api/v1/user',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          email: 'user@example.com',
+          raw_password: 'plain-pass',
+          quota_bytes: 25 * 1024 * 1024,
+        }),
+      }),
+    );
+  });
+
+  it('sends null when no quota is provided', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ email: 'user@example.com' }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await createUser({ localpart: 'user', domain: 'example.com', password: 'plain-pass' });
+
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      email: 'user@example.com',
+      raw_password: 'plain-pass',
+      quota_bytes: null,
+    });
   });
 });

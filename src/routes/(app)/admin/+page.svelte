@@ -32,6 +32,18 @@
   let password = $state('');
   let quota = $state('');
   void data;
+
+  function isPasswordError(value: ActionData): boolean {
+    return value != null && 'field' in value && value.field === 'password';
+  }
+
+  $effect(() => {
+    if (form?.ok) {
+      localpart = '';
+      password = '';
+      quota = '';
+    }
+  });
 </script>
 
 <svelte:head><title>Admin · Fast Mail</title></svelte:head>
@@ -124,10 +136,16 @@
                   id="password"
                   name="password"
                   type="password"
-                  placeholder="mín 8 caracteres"
+                  placeholder="mínimo 8 caracteres"
                   required
                   bind:value={password}
+                  aria-describedby={isPasswordError(form) ? 'password-error' : undefined}
                 />
+                {#if isPasswordError(form)}
+                  <p id="password-error" class="flex items-start gap-2 text-xs text-destructive" role="alert">
+                    <AlertCircle class="mt-0.5 size-3.5 shrink-0" />{form?.error}
+                  </p>
+                {/if}
               </div>
               <div class="space-y-1.5">
                 <Label for="quota">Cuota (MB)</Label>
@@ -147,7 +165,9 @@
                 </div>
               </div>
             </form>
-            {#if form?.error}
+            {#if form?.ok}
+              <p class="mt-3 text-sm text-emerald-600" role="status">Usuario creado correctamente.</p>
+            {:else if form?.error && !isPasswordError(form)}
               <p class="mt-3 flex items-center gap-2 text-sm text-destructive">
                 <AlertCircle class="size-4 shrink-0" />{form.error}
               </p>

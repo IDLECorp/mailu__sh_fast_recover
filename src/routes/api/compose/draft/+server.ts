@@ -10,6 +10,8 @@ import {
   COMPOSED_HTML_GUARD_STATUS,
   COMPOSED_HTML_GUARD_MESSAGES,
 } from '$lib/server/compose-html-guard';
+import { validateRecipientFields } from '$lib/recipient-validation';
+import { parseDraftRequest } from '$lib/server/draft-request';
 
 // SEC: con @sveltejs/adapter-node el limite REAL de cuerpo lo impone la env
 // El limite de cuerpo efectivo en produccion es BODY_SIZE_LIMIT (12M en INFRA),
@@ -38,13 +40,13 @@ export const POST: RequestHandler = async ({ locals, request, getClientAddress }
     return json({ ok: false, error: 'Demasiados guardados de borrador (60/min)' }, { status: 429 });
   }
 
-  const body = (await request.json()) as Record<string, unknown>;
-  const to = String(body.to ?? '').trim();
-  const cc = String(body.cc ?? '').trim();
-  const bcc = String(body.bcc ?? '').trim();
-  const subject = String(body.subject ?? '').trim();
-  const text = String(body.text ?? '').trim();
-  const rawHtml = String(body.html ?? '').trim();
+  const payload = await parseDraftRequest(request);
+  if (!payload) return json({ ok: false, error: 'El cuerpo del borrador no es válido.' }, { status: 400 });
+
+  const { to, cc, bcc, subject, text } = payload;
+  const rawHtml = payload.html;
+  const recipientError = validateRecipientFields({ to, cc, bcc });
+  if (recipientError) return json({ ok: false, error: recipientError }, { status: 400 });
   if (rawHtml) {
     // SEC-012: tamaño Y estructura, antes de sanitizar.
     const guard = guardComposedHtml(rawHtml);
@@ -55,7 +57,8 @@ export const POST: RequestHandler = async ({ locals, request, getClientAddress }
       );
     }
   }
-  if (!to && !cc && !bcc && !subject && !text) return json({ ok: false, error: 'Borrador vacío' });
+  if (!to && !cc && !bcc && !subject && !text && !rawHtml)
+    return json({ ok: false, error: 'Borrador vacío' });
   let html: string | undefined;
   if (rawHtml) {
     const sanitized = safeSanitizeComposedEmailHtml(rawHtml);
@@ -64,14 +67,19 @@ export const POST: RequestHandler = async ({ locals, request, getClientAddress }
     html = sanitized.html.trim() || undefined;
   }
 
-  const raw = buildMime(locals.user.email, {
-    to,
-    cc: cc || undefined,
-    bcc: bcc || undefined,
-    subject: subject || '(sin asunto)',
-    text: text || '(sin contenido)',
-    html,
-  });
+  let raw: string;
+  try {
+    raw = buildMime(locals.user.email, {
+      to,
+      cc: cc || undefined,
+      bcc: bcc || undefined,
+      subject: subject || '(sin asunto)',
+      text: text || '(sin contenido)',
+      html,
+    });
+  } catch {
+    return json({ ok: false, error: 'Los datos del borrador no son válidos.' }, { status: 400 });
+  }
 
   try {
     await appendToDrafts({ user: locals.user.email, pass: password }, raw);

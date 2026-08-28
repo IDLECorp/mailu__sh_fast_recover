@@ -9,15 +9,21 @@
   import { Label } from '$lib/components/ui/label';
   import { Textarea } from '$lib/components/ui/textarea';
   import { toast } from '$lib/stores/toast';
+  import { validateRecipientFields } from '$lib/recipient-validation';
+  import { plainTextToHtml } from '$lib/compose-html';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
   let loading = $state(false);
   let savingDraft = $state(false);
   let to = $state(data.prefill?.to ?? '');
   let cc = $state(data.prefill?.cc ?? '');
+  let bcc = $state(data.prefill?.bcc ?? '');
   let subject = $state(data.prefill?.subject ?? '');
   let text = $state(data.prefill?.isDraft ? (data.prefill?.text ?? '') : (data.prefill?.body ?? ''));
+  let html = $state(data.prefill?.html ?? '');
   let showCc = $state(!!data.prefill?.cc);
+  let showBcc = $state(!!data.prefill?.bcc);
+  let clientError = $state('');
   let files = $state<File[]>([]);
   let dragging = $state(false);
 
@@ -62,8 +68,13 @@
             method="POST"
             id="sendForm"
             action="?/send"
-            use:enhance={({ formData }) => {
-              loading = true;
+            use:enhance={({ formData, cancel }) => {
+               clientError = validateRecipientFields({ to, cc, bcc }) ?? '';
+               if (clientError) {
+                 cancel();
+                 return;
+               }
+               loading = true;
               formData.delete('attachment');
               for (const f of files) formData.append('attachment', f);
               return async ({ result, update }) => {
@@ -71,11 +82,13 @@
                 if (result.type === 'success' && result.data?.ok) {
                   toast.success('¡Listo! El correo se envió.');
                   goto('/inbox?sent=1');
-                } else if (result.type === 'failure') {
+                 } else if (result.type === 'failure') {
                   const msg =
                     (result.data as { error?: string })?.error ??
                     'No se pudo enviar el correo. Intentá de nuevo.';
                   toast.error(msg);
+                } else if (result.type === 'error') {
+                  toast.error('No se pudo enviar el correo. Intentá de nuevo.');
                 }
                 await update();
               };
@@ -88,16 +101,17 @@
                 <Input
                   id="to"
                   name="to"
-                  type="email"
+                  type="text"
                   multiple
                   placeholder="destinatario@dominio.com"
                   required
                   bind:value={to}
                 />
                 {#if !showCc}
-                  <Button type="button" variant="outline" size="sm" onclick={() => (showCc = true)}
-                    >Cc</Button
-                  >
+                  <Button type="button" variant="outline" size="sm" onclick={() => (showCc = true)}>Cc</Button>
+                {/if}
+                {#if !showBcc}
+                  <Button type="button" variant="outline" size="sm" onclick={() => (showBcc = true)}>Cco</Button>
                 {/if}
               </div>
             </div>
@@ -108,11 +122,24 @@
                 <Input
                   id="cc"
                   name="cc"
-                  type="email"
+                  type="text"
                   multiple
                   placeholder="con copia"
                   bind:value={cc}
                 />
+              </div>
+            {/if}
+
+            {#if showBcc}
+                <div class="space-y-2">
+                  <Label for="bcc">Cco</Label>
+                  <Input
+                    id="bcc"
+                    name="bcc"
+                    type="text"
+                    placeholder="copia oculta"
+                    bind:value={bcc}
+                  />
               </div>
             {/if}
 
@@ -130,17 +157,18 @@
 
             <div class="space-y-2">
               <Label for="text">Mensaje</Label>
-              <Textarea
+            <Textarea
                 id="text"
                 name="text"
                 rows={10}
                 required
                 bind:value={text}
+                oninput={() => (html = plainTextToHtml(text))}
                 class="font-mono"
               />
             </div>
 
-            <input type="hidden" name="html" value="" />
+            <input type="hidden" name="html" value={html} />
             <input type="hidden" name="draftUid" value={data.draftUid ?? ''} />
             <input type="hidden" name="draftMailbox" value={data.draftMailbox ?? ''} />
 
@@ -194,9 +222,9 @@
               {/if}
             </div>
 
-            {#if form?.error}
-              <p class="flex items-center gap-2 text-sm text-destructive">
-                <AlertCircle class="size-4 shrink-0" />{form.error}
+             {#if clientError || form?.error}
+               <p class="flex items-center gap-2 text-sm text-destructive">
+                 <AlertCircle class="size-4 shrink-0" />{clientError || form?.error}
               </p>
             {/if}
 
@@ -217,22 +245,39 @@
             id="draftForm"
             action="?/draft"
             class="hidden"
-            use:enhance={() => {
-              savingDraft = true;
+            use:enhance={({ cancel }) => {
+               clientError = validateRecipientFields({ to, cc, bcc }) ?? '';
+               if (clientError) {
+                 cancel();
+                 return;
+               }
+               savingDraft = true;
               return async ({ result, update }) => {
                 savingDraft = false;
                 await update();
-                if (result.type === 'success' && result.data?.ok) {
-                  toast.success('Borrador guardado.');
+                if (result.type === 'success') {
+                  if (result.data?.ok) toast.success('Borrador guardado.');
+                  else
+                    toast.error(
+                      (result.data as { error?: string })?.error ?? 'No se pudo guardar el borrador.',
+                    );
                 } else if (result.type === 'failure') {
+                  toast.error(
+                    (result.data as { error?: string })?.error ??
+                      'No se pudo guardar el borrador. Intentá de nuevo.',
+                  );
+                } else if (result.type === 'error') {
                   toast.error('No se pudo guardar el borrador. Intentá de nuevo.');
                 }
               };
             }}
           >
-            <input type="hidden" name="to" value={to} />
+           <input type="hidden" name="to" value={to} />
+           <input type="hidden" name="cc" value={cc} />
+           <input type="hidden" name="bcc" value={bcc} />
             <input type="hidden" name="subject" value={subject} />
             <input type="hidden" name="text" value={text} />
+           <input type="hidden" name="html" value={html} />
           </form>
         </CardContent>
       </Card>

@@ -10,6 +10,7 @@ import {
   COMPOSED_HTML_GUARD_STATUS,
   COMPOSED_HTML_GUARD_MESSAGES,
 } from '$lib/server/compose-html-guard';
+import { validateRecipientFields } from '$lib/recipient-validation';
 
 const MAX_SIZE = 10 * 1024 * 1024;
 // SEC: limite de adjunto de la app (10 MB). El cuerpo solo llega a este
@@ -22,21 +23,8 @@ const MAX_SIZE = 10 * 1024 * 1024;
 // >= MAX_SIZE + overhead del multipart; en INFRA se configura como 12M
 // (docker-compose.prod.yml). En produccion con adapter-node el valor efectivo
 // es BODY_SIZE_LIMIT (no existe bodySizeLimit por ruta en SvelteKit 2).
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PRIORITIES = new Set(['low', 'normal', 'high']);
 const CRLF_RE = /[\r\n]/;
-
-function parseRecipients(value: string): string[] {
-  return value
-    .split(/[;,]/)
-    .map((email) => email.trim())
-    .filter(Boolean);
-}
-
-function validateRecipients(label: string, value: string): string | null {
-  const invalid = parseRecipients(value).find((email) => !EMAIL_RE.test(email));
-  return invalid ? `${label} contiene un correo inválido: ${invalid}` : null;
-}
 
 export const POST: RequestHandler = async ({ locals, request, getClientAddress }) => {
   const sid = locals.sessionId;
@@ -93,10 +81,7 @@ export const POST: RequestHandler = async ({ locals, request, getClientAddress }
   if (!to || !subject || !text) return json({ ok: false, error: 'Faltan campos' }, { status: 400 });
   if (to.length > 1024 || subject.length > 200)
     return json({ ok: false, error: 'Campos demasiado largos' }, { status: 400 });
-  const recipientError =
-    validateRecipients('Para', to) ??
-    validateRecipients('Cc', cc ?? '') ??
-    validateRecipients('Cco', bcc ?? '');
+  const recipientError = validateRecipientFields({ to, cc, bcc });
   if (recipientError) return json({ ok: false, error: recipientError }, { status: 400 });
 
   const attachments: AttachmentBytes[] = [];
@@ -138,7 +123,7 @@ export const POST: RequestHandler = async ({ locals, request, getClientAddress }
       return json({ ok: false, error: e.message }, { status: e.status });
     }
     return json(
-      { ok: false, error: `No se pudo enviar: ${(e as Error).message}` },
+      { ok: false, error: 'No se pudo enviar el correo. Intentá de nuevo.' },
       { status: 500 },
     );
   }

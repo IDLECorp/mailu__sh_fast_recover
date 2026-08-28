@@ -19,6 +19,7 @@
   import EmojiPicker from '$lib/components/rich-text/EmojiPicker.svelte';
   import { cn } from '$lib/utils';
   import { toast } from '$lib/stores/toast';
+  import { validateRecipientFields } from '$lib/recipient-validation';
   import ConfirmModal from '$lib/components/ConfirmModal.svelte';
   import { hasMeaningfulText } from '$lib/compose-html';
   import {
@@ -167,14 +168,23 @@
 
   async function saveDraft() {
     if (!hasContent) return;
+    const recipientError = validateRecipientFields({ to, cc, bcc });
+    if (recipientError) {
+      error = recipientError;
+      return;
+    }
     try {
-      await fetch('/api/compose/draft', {
+      const response = await fetch('/api/compose/draft', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ to, cc, bcc, subject, text, html }),
       });
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as { error?: string } | null;
+        error = data?.error ?? 'No se pudo guardar el borrador.';
+      }
     } catch {
-      // silent
+      error = 'No se pudo guardar el borrador.';
     }
   }
 
@@ -190,6 +200,12 @@
 
   async function handleSend() {
     error = '';
+    const recipientError = validateRecipientFields({ to, cc, bcc });
+    if (recipientError) {
+      error = recipientError;
+      toast.error(recipientError);
+      return;
+    }
     // [C9 — diseño §14.1] Con la firma activa por defecto, `text` casi nunca
     // queda vacío (incluye "-- \nNombre\nemail\ndominio" salvo que el usuario
     // la borre a mano). Se usa hasMeaningfulText() — el mismo chequeo canónico
@@ -224,18 +240,15 @@
 
       const res = await fetch('/api/compose/send', { method: 'POST', body: fd });
       const data = await res.json();
-      // El modal siempre se cierra y avisamos con un toast. Los mensajes son
-      // nuestros (en criollo) y no exponen el error crudo que devuelve el server.
-      reset();
-      onClose();
       if (data.ok) {
+        reset();
+        onClose();
         toast.success('¡Listo! El correo se envió.');
       } else {
-        toast.error('Hubo un error con el sistema. No se pudo enviar el correo.');
+        error = typeof data.error === 'string' ? data.error : 'No se pudo enviar el correo. Intentá de nuevo.';
+        toast.error(error);
       }
     } catch {
-      reset();
-      onClose();
       toast.error('Hubo un error con el sistema. Intentá de nuevo más tarde.');
     } finally {
       sending = false;
@@ -381,7 +394,7 @@
             <input
               bind:value={to}
               placeholder="Para"
-              type="email"
+               type="text"
               class="h-10 min-w-0 flex-1 rounded-3xl border border-input bg-background px-4 text-sm placeholder:text-muted-foreground outline-none focus:outline-none focus:ring-0"
             />
             {#if !showCc}
@@ -410,7 +423,7 @@
             <input
               bind:value={cc}
               placeholder="Cc"
-              type="email"
+               type="text"
               class="w-full h-10 rounded-3xl border border-input bg-background px-4 text-sm placeholder:text-muted-foreground outline-none focus:outline-none focus:ring-0"
             />
           {/if}
@@ -419,7 +432,7 @@
             <input
               bind:value={bcc}
               placeholder="Cco"
-              type="email"
+               type="text"
               class="w-full h-10 rounded-3xl border border-input bg-background px-4 text-sm placeholder:text-muted-foreground outline-none focus:outline-none focus:ring-0"
             />
           {/if}

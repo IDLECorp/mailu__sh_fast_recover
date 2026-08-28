@@ -35,6 +35,7 @@ export interface MessageDetail {
   from: string;
   to: string;
   cc: string;
+  bcc: string;
   date: Date;
   text: string;
   html: string | null;
@@ -288,6 +289,7 @@ export async function fetchMessage(
         from: normalizeAddressValue(parsed.from) || normalizeAddressValue(env.from),
         to: normalizeAddressValue(parsed.to) || normalizeAddressValue(env.to),
         cc: normalizeAddressValue(parsed.cc) || normalizeAddressValue(env.cc),
+        bcc: normalizeAddressValue(parsed.bcc),
         date,
         text,
         html,
@@ -517,6 +519,18 @@ export interface SearchHit {
   seen: boolean;
 }
 
+export class PurgeTrashError extends Error {
+  readonly failedUids: number[];
+  readonly remainingUids: number[];
+
+  constructor(failedUids: number[] = [], remainingUids: number[] = []) {
+    super('No se pudo vaciar la papelera');
+    this.name = 'PurgeTrashError';
+    this.failedUids = failedUids;
+    this.remainingUids = remainingUids;
+  }
+}
+
 export async function purgeTrash(creds: ImapCreds): Promise<number> {
   const client = imapClient(creds);
   await client.connect();
@@ -524,12 +538,37 @@ export async function purgeTrash(creds: ImapCreds): Promise<number> {
     const lock = await client.getMailboxLock('Trash');
     try {
       const count = (await client.status('Trash', { messages: true })).messages ?? 0;
-      if (count > 0) {
-        const uids =
-          ((await client.search({ all: true } as never, { uid: true })) as number[] | false) || [];
-        if (uids.length) await uidlist_expunge(client, uids);
-        await uidlist_expunge(client, uids);
+      if (count === 0) return 0;
+
+      const searchResult = await client.search({ all: true }, { uid: true });
+      if (searchResult === false) throw new PurgeTrashError();
+      const uids = searchResult;
+      if (!uids.length) throw new PurgeTrashError([], [count]);
+      if (!client.capabilities.has('UIDPLUS')) throw new PurgeTrashError([], uids);
+
+      const failedUids: number[] = [];
+      for (const uid of uids) {
+        try {
+          const marked = await client.messageFlagsAdd(String(uid), ['\\Deleted'], { uid: true });
+          if (!marked) failedUids.push(uid);
+        } catch {
+          failedUids.push(uid);
+        }
       }
+
+      try {
+        await expungeUidsOnce(client, uids);
+      } catch {
+        throw new PurgeTrashError(failedUids, uids);
+      }
+
+      const remainingCount = (await client.status('Trash', { messages: true })).messages ?? 0;
+      const remainingResult = await client.search({ all: true }, { uid: true });
+      const remainingUids = remainingResult === false ? uids : remainingResult;
+      if (failedUids.length || remainingCount > 0 || remainingUids.length) {
+        throw new PurgeTrashError(failedUids, remainingUids);
+      }
+
       return count;
     } finally {
       lock.release();
@@ -539,14 +578,11 @@ export async function purgeTrash(creds: ImapCreds): Promise<number> {
   }
 }
 
-async function uidlist_expunge(client: ImapFlow, uids: number[]): Promise<void> {
-  for (const uid of uids) {
-    try {
-      await client.messageDelete(String(uid), { uid: true });
-    } catch {
-      // skip
-    }
-  }
+async function expungeUidsOnce(client: ImapFlow, uids: number[]): Promise<void> {
+  const exec = (client as ImapFlow & {
+    exec(command: string, attributes: [{ type: string; value: string }]): Promise<unknown>;
+  }).exec;
+  await exec.call(client, 'UID EXPUNGE', [{ type: 'SEQUENCE', value: uids.join(',') }]);
 }
 
 export const FOLDER_ICONS = [

@@ -4,6 +4,7 @@ import { listDomains, listUsers, createUser, deleteUser } from '$lib/server/mail
 import { getSessionPassword } from '$lib/server/auth';
 import { rateLimitByKey } from '$lib/server/rate-limit';
 import { env } from '$env/dynamic/private';
+import { classifyCreateUserError, createUserPasswordError } from '$lib/server/admin-errors';
 
 export const load: PageServerLoad = async ({ locals }) => {
   const user = locals.user;
@@ -37,16 +38,21 @@ export const actions: Actions = {
     const domain = String(data.get('domain') ?? '').trim();
     const password = String(data.get('password') ?? '');
     const quotaRaw = String(data.get('quota') ?? '');
-    if (!localpart || !domain || !password) return { ok: false, error: 'Faltan datos' };
-    if (password.length < 8) return { ok: false, error: 'Contraseña mínima 8 caracteres' };
-    if (localpart.length > 64 || !/^[a-z0-9._-]+$/.test(localpart)) return { ok: false, error: 'Localpart inválido' };
+    if (!localpart || !domain || !password) return { ok: false, error: 'Completá nombre, dominio y contraseña.' };
+    if (password.length < 8) return { ok: false, error: createUserPasswordError, field: 'password' as const };
+    if (localpart.length > 64 || !/^[a-z0-9._-]+$/.test(localpart)) {
+      return { ok: false, error: 'El nombre de usuario solo puede tener letras minúsculas, números, puntos, guiones y guiones bajos.' };
+    }
     const quota = quotaRaw ? Number(quotaRaw) : undefined;
-    if (quota !== undefined && (!Number.isFinite(quota) || quota < 0)) return { ok: false, error: 'Quota inválido' };
+    if (quota !== undefined && (!Number.isFinite(quota) || quota < 0 || !Number.isSafeInteger(quota * 1024 * 1024))) {
+      return { ok: false, error: 'La cuota debe ser un número válido mayor o igual a cero.' };
+    }
     try {
       await createUser({ localpart, domain, password, quota });
       return { ok: true };
     } catch (e) {
-      return { ok: false, error: (e as Error).message };
+      const classified = classifyCreateUserError(e);
+      return { ok: false, error: classified.message, ...(classified.field ? { field: classified.field } : {}) };
     }
   },
   deleteUser: async ({ request, getClientAddress, locals }) => {
