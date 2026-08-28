@@ -84,7 +84,7 @@
       </div>
       <div class="flex flex-col -space-y-0.5">
         <span class="font-semibold tracking-tight">Fast Mail</span>
-        <span class="text-xs uppercase tracking-wider text-muted-foreground">SH Fast Recover</span>
+        <span class="text-xs uppercase tracking-wider text-muted-foreground">Fast Mail</span>
       </div>
     </div>
 
