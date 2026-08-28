@@ -16,7 +16,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
-ENV BODY_SIZE_LIMIT=5242880
+ENV BODY_SIZE_LIMIT=12582912
 
 RUN apk add --no-cache wget curl tini
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 fast
