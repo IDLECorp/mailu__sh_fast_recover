@@ -154,6 +154,13 @@ export async function clearSessionNeedPwChange(sid: string | null): Promise<void
   await setSessionRaw(sid, s);
 }
 
+export async function updateSessionPasswordAndClearNeedPwChange(sid: string | null, password: string): Promise<void> {
+  if (!sid) return;
+  const s = await getSessionRaw(sid);
+  if (!s) return;
+  await setSessionRaw(sid, { ...s, password, needPwChange: false });
+}
+
 export async function getSessionPassword(sid: string | null): Promise<string | null> {
   if (!sid) return null;
   const s = await getSessionRaw(sid);

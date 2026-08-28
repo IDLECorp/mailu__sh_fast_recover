@@ -1,6 +1,6 @@
 import { fail, error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { getSessionUser, getSessionPassword, clearSessionNeedPwChange } from '$lib/server/auth';
+import { getSessionPassword, updateSessionPasswordAndClearNeedPwChange } from '$lib/server/auth';
 import { updatePassword } from '$lib/server/mailu-admin';
 import { env } from '$env/dynamic/private';
 
@@ -8,13 +8,10 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
   void cookies;
   if (!locals.user) throw redirect(303, '/login');
 
-  const sid = locals.sessionId;
-  const currentPassword = sid ? await getSessionPassword(sid) : null;
-
   if (!env.MAILU_API_KEY) {
-    return { adminEnabled: false as const, email: locals.user.email, currentPassword: '' };
+    return { adminEnabled: false as const, email: locals.user.email };
   }
-  return { adminEnabled: true as const, email: locals.user.email, currentPassword: currentPassword ?? '' };
+  return { adminEnabled: true as const, email: locals.user.email };
 };
 
 export const actions: Actions = {
@@ -38,7 +35,7 @@ export const actions: Actions = {
 
     try {
       await updatePassword(locals.user.email, newPw);
-      if (sid) await clearSessionNeedPwChange(sid);
+      await updateSessionPasswordAndClearNeedPwChange(sid, newPw);
     } catch (e) {
       const msg = (e as Error).message || 'no se pudo cambiar';
       return fail(500, { error: msg });

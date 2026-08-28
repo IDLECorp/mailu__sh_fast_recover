@@ -5,11 +5,47 @@ interface MailuConfig {
   apiKey: string;
 }
 
+function getBaseUrl(): string | null {
+  const raw = (env.MAILU_ADMIN_URL ?? 'http://mailu-admin-1:8080').trim();
+  if (!raw) return null;
+
+  try {
+    return new URL(raw).toString().replace(/\/+$/, '');
+  } catch {
+    return null;
+  }
+}
+
 function getConfig(): MailuConfig {
-  const baseUrl = (env.MAILU_ADMIN_URL ?? 'http://mailu-admin-1:8080').replace(/\/$/, '');
+  const baseUrl = getBaseUrl();
+  if (!baseUrl) throw new Error('MAILU_ADMIN_URL invalido');
   const apiKey = env.MAILU_API_KEY;
   if (!apiKey) throw new Error('MAILU_API_KEY no configurado');
   return { baseUrl, apiKey };
+}
+
+export async function validateMailuBasicAuthPassword(email: string, password: string): Promise<boolean | null> {
+  const baseUrl = getBaseUrl();
+  if (!baseUrl) return null;
+
+  try {
+    const res = await fetch(`${baseUrl}/internal/auth/basic`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Basic ${Buffer.from(`${email}:${password}`, 'utf8').toString('base64')}`,
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+
+    if (res.status === 401) return false;
+    if (!res.ok) return null;
+
+    const authenticatedUser = res.headers.get('X-User');
+    if (authenticatedUser && authenticatedUser.toLowerCase() !== email.toLowerCase()) return false;
+    return true;
+  } catch {
+    return null;
+  }
 }
 
 async function adminRequest(path: string, init: RequestInit = {}): Promise<unknown> {
@@ -45,6 +81,7 @@ export interface MailuUser {
   localpart: string;
   enabled: boolean;
   quota: number | null;
+  change_pw_next_login?: boolean;
 }
 
 export interface MailuAlias {
@@ -80,6 +117,25 @@ export async function listUsers(domain?: string): Promise<MailuUser[]> {
   return (await adminRequest(api(path))) as MailuUser[];
 }
 
+export async function getUser(email: string): Promise<MailuUser> {
+  return (await adminRequest(api(`/user/${encodeURIComponent(email)}`))) as MailuUser;
+}
+
+export async function getUserPasswordChangeRequired(email: string): Promise<boolean | null> {
+  if (!env.MAILU_API_KEY) return null;
+  try {
+    const user = await getUser(email);
+    return typeof user.change_pw_next_login === 'boolean' ? user.change_pw_next_login : null;
+  } catch (e) {
+    console.error('mailu getUserPasswordChangeRequired', (e as Error).message);
+    return null;
+  }
+}
+
+export async function resolvePasswordChangeRequirement(email: string, fallback: boolean): Promise<boolean> {
+  return (await getUserPasswordChangeRequired(email)) ?? fallback;
+}
+
 export async function createUser(input: { localpart: string; domain: string; password: string; quota?: number }): Promise<MailuUser> {
   return (await adminRequest(api('/user'), {
     method: 'POST',
@@ -99,7 +155,7 @@ export async function deleteUser(email: string): Promise<void> {
 export async function updatePassword(email: string, password: string): Promise<void> {
   await adminRequest(api(`/user/${encodeURIComponent(email)}`), {
     method: 'PATCH',
-    body: JSON.stringify({ password })
+    body: JSON.stringify({ raw_password: password, change_pw_next_login: false })
   });
 }
 

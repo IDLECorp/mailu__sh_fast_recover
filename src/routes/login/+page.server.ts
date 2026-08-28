@@ -2,6 +2,11 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { verifyCredentialsFull } from '$lib/server/imap';
 import { createSession } from '$lib/server/auth';
+import {
+  getUserPasswordChangeRequired,
+  resolvePasswordChangeRequirement,
+  validateMailuBasicAuthPassword,
+} from '$lib/server/mailu-admin';
 import { rateLimitByKey } from '$lib/server/rate-limit';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -26,9 +31,18 @@ export const actions: Actions = {
     }
 
     const check = await verifyCredentialsFull({ user: email, pass: password });
-    if (!check.ok) return fail(401, { error: 'Email o contraseña incorrectos', email });
+    if (!check.ok) {
+      const mailuRequiresPasswordChange = await getUserPasswordChangeRequired(email);
+      if (mailuRequiresPasswordChange === true && (await validateMailuBasicAuthPassword(email, password)) === true) {
+        await createSession(cookies, email, password, true);
+        throw redirect(303, '/change-password');
+      }
 
-    await createSession(cookies, email, password, check.needPwChange);
-    throw redirect(303, check.needPwChange ? '/change-password' : (next.startsWith('/') ? next : '/inbox'));
+      return fail(401, { error: 'Email o contraseña incorrectos', email });
+    }
+
+    const needPwChange = await resolvePasswordChangeRequirement(email, check.needPwChange);
+    await createSession(cookies, email, password, needPwChange);
+    throw redirect(303, needPwChange ? '/change-password' : (next.startsWith('/') ? next : '/inbox'));
   }
 };

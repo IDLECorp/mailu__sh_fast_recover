@@ -9,7 +9,7 @@
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
   let loading = $state(false);
-  let showCurrent = $state(true);
+  let showCurrent = $state(false);
   let showNew = $state(false);
   let showConfirm = $state(false);
 </script>
@@ -25,11 +25,7 @@
         </div>
         <h1 class="text-xl font-semibold tracking-tight">Cambiar contraseña</h1>
         <p class="text-sm text-muted-foreground px-6">
-          {#if data.currentPassword}
-            Ingresá una nueva contraseña para <span class="font-medium">{data.email}</span>
-          {:else}
-            Tu cuenta <span class="font-medium">{data.email}</span> tiene una contraseña temporal. Necesitás cambiarla antes de usar Fast Mail.
-          {/if}
+          Tu cuenta <span class="font-medium">{data.email}</span> tiene una contraseña temporal. Necesitás cambiarla antes de usar Fast Mail.
         </p>
       </div>
 
@@ -47,10 +43,9 @@
                 <Input
                   id="current" name="current"
                   type={showCurrent ? 'text' : 'password'}
-                  autocomplete="off"
+                  autocomplete="current-password"
                   required
                   class="pl-9 pr-9"
-                  value={data.currentPassword}
                   placeholder="Contraseña temporal"
                 />
                 <button type="button" onclick={() => (showCurrent = !showCurrent)} class="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition" aria-label={showCurrent ? 'Ocultar' : 'Mostrar'}>
