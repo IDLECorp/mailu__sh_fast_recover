@@ -41,8 +41,8 @@ export async function validateMailuBasicAuthPassword(email: string, password: st
     if (!res.ok) return null;
 
     const authenticatedUser = res.headers.get('X-User');
-    if (authenticatedUser && authenticatedUser.toLowerCase() !== email.toLowerCase()) return false;
-    return true;
+    if (!authenticatedUser) return false;
+    return authenticatedUser.toLowerCase() === email.toLowerCase();
   } catch {
     return null;
   }

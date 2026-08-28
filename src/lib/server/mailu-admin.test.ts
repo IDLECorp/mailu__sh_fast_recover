@@ -86,10 +86,10 @@ describe('Mailu Admin user updates', () => {
     );
   });
 
-  it('accepts Mailu internal Basic auth success without an X-User header', async () => {
+  it('rejects Mailu internal Basic auth success without an X-User header', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 204 })));
 
-    await expect(validateMailuBasicAuthPassword('user@example.com', 'submitted-password')).resolves.toBe(true);
+    await expect(validateMailuBasicAuthPassword('user@example.com', 'submitted-password')).resolves.toBe(false);
   });
 
   it('rejects Mailu internal Basic auth when X-User does not match', async () => {
